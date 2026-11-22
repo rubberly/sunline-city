@@ -2308,7 +2308,7 @@ function enterExit(){
   if(!best)return;
   const c=best;
   if(c.boat||!c.doorL){c.mode='player';c.s=0;player.inCar=c;player.human.g.visible=false;lookIdle=2;thud(0.15);return;}
-  const jack=c.mode==='traffic'||c.mode==='police'||c.mode==='hwy';
+  const jack=c.mode==='traffic'||c.mode==='police'||c.mode==='hwy'||c.mode==='rural';
   if(jack){addCrime(c.mode==='police'?2:1,c.mode==='police'?'Stole a police car':'Carjacking');scareNear(c.x,c.z);if(c.mode==='police')c.chase=false;}
   else if(c.police)addCrime(1,'Stole a police car');
   startEntry(c,jack);
@@ -2427,7 +2427,7 @@ function updatePlayerCar(dt,inp){
   const steer=dead?0:-inp.s;
   c.roll=lerp(c.roll||0,steer*clamp(fs/30,-1,1)*0.06,1-Math.exp(-6*dt));c.dive=lerp(c.dive||0,(brk>0&&fs>1?0.035:thr>0?-0.025:0)*clamp(Math.abs(fs)/8,0,1),1-Math.exp(-5*dt));
   const rate=2.0*(1-0.4*Math.min(1,Math.abs(fs)/MAX))*(inp.brake?1.5:1);
-  c.h+=steer*rate*clamp(fs/7,-1,1)*dt;
+  {const tgt=steer*rate*clamp(fs/7,-1,1),yg=(inp.brake?2.2:9)*(1-0.4*GFX.wet);c.av=(c.av||0)+(tgt-(c.av||0))*(1-Math.exp(-yg*dt));c.h+=c.av*dt;}
   if(!c.boat&&inSwampWater(c.x,c.z)){fs*=Math.exp(-1.3*dt);if(Math.abs(fs)>4&&Math.random()<0.6)emit(c.x+rand(-1,1),0.5,c.z+rand(-1,1),rand(-2,2),rand(1,3),rand(-2,2),0xb8c8b0,0.6,0.6,1.5);}
   const grip=(inp.brake?1.1:8.5)*(1-0.35*GFX.wet)*(c.boat?0.3:1);const kk=Math.exp(-grip*dt);lx*=kk;lz*=kk;
   const nfx=Math.sin(c.h),nfz=Math.cos(c.h);
@@ -2439,7 +2439,7 @@ function updatePlayerCar(dt,inp){
     for(const p of s.panes){if(!p.broken&&!p.col.off&&Math.abs(c.z-p.z)<2.6&&c.x>p.x-p.w/2-1.2&&c.x<p.x+p.w/2+1.2){breakPane(s,p);c.hp-=4;S.shake=Math.max(S.shake,0.4);}}}
   mpCarHits(c);
   if(!c.boat)vertical(c,dt);const n=c.boat?null:((c.deck&&c.y>1.5)?railPush(c,2.0):collide(c,2.0));
-  if(n){const vn=c.vx*n.x+c.vz*n.z;if(vn<0){c.vx-=n.x*vn*1.35;c.vz-=n.z*vn*1.35;const imp=-vn;if(imp>5){c.hp-=imp*1.1;S.shake=Math.max(S.shake,Math.min(0.8,imp/30));thud(Math.min(1,imp/25));}}}
+  if(n){const vn=c.vx*n.x+c.vz*n.z;if(vn<0){c.vx-=n.x*vn*1.35;c.vz-=n.z*vn*1.35;const imp=-vn;if(imp>5){c.hp-=imp*1.1;S.shake=Math.max(S.shake,Math.min(0.8,imp/30));thud(Math.min(1,imp/25));c.av=(c.av||0)+(n.x*Math.cos(c.h)-n.z*Math.sin(c.h))*imp*0.05;c.bv=(c.bv||0)-imp*0.05;}}}
   const lat=Math.hypot(lx,lz);
   if(lat>5&&Math.random()<0.6){const bx=c.x-nfx*1.8,bz=c.z-nfz*1.8;emit(bx+rand(-.8,.8),(c.y||0)+0.4,bz,rand(-.5,.5),rand(.5,1.5),rand(-.5,.5),0xdddddd,rand(.6,1),1.2,2.5);}
   c.steerP.forEach(p=>p.rotation.y+=(steer*0.45-p.rotation.y)*(1-Math.exp(-10*dt)));
@@ -2502,6 +2502,8 @@ function updateCars(dt){
     if(c.mode==='player'){/* handled */}
     else if(c.mode==='traffic'||c.mode==='police')updateAICar(c,dt);
     else if(c.mode==='hwy')updateHwyCar(c,dt);
+    else if(c.mode==='rural')updateRuralCar(c,dt);
+    else if(c.mode==='aiboat')updateAIBoat(c,dt);
     else{if(c.sink){c.y-=dt*0.9;c.mesh.position.y=c.y;if(c.y<-5)removeCar(c);continue;}
       if(c.boat){updateBoat(c,dt,null);}else{const k=Math.exp(-2.2*dt);c.vx*=k;c.vz*=k;c.x+=c.vx*dt;c.z+=c.vz*dt;}if(c.boat){}
       else{vertical(c,dt);if(c.deck&&c.y>1.5)railPush(c,2.0);else if(Math.hypot(c.vx,c.vz)>0.1)collide(c,2.0);
@@ -2509,7 +2511,7 @@ function updateCars(dt){
     if(c.mode!=='wreck'&&c.hp<=0)wreckCar(c);
     if(c.mode!=='wreck'&&c.hp<45){c.smokeT-=dt;if(c.smokeT<=0){c.smokeT=c.hp<20?0.05:0.15;emit(c.x+Math.sin(c.h)*1.8,1.3,c.z+Math.cos(c.h)*1.8,rand(-.3,.3),rand(1.5,2.5),rand(-.3,.3),c.hp<20?0x333333:0x999999,1.4,1,2.5);}}
     if(c.mode==='wreck'){c.wreckT+=dt;if(c.wreckT<6&&Math.random()<0.5)emit(c.x+rand(-1,1),1.2,c.z+rand(-1,1),0,rand(2,4),0,Math.random()<0.5?0xff7a2a:0x222222,1,1.4,2);}
-    c.mesh.position.set(c.x,c.y||0,c.z);c.mesh.rotation.y=c.h;if(c.mode!=='player'&&!c.boat){c.roll=(c.roll||0)*0.9;c.dive=(c.dive||0)*0.9;}c.mesh.rotation.x=-Math.atan(c.pitch||0)+(c.dive||0);c.mesh.rotation.z=c.roll||0;
+    c.bv=(c.bv||0)+(-(c.bo||0)*140-(c.bv||0)*10)*dt;c.bo=clamp((c.bo||0)+c.bv*dt,-0.25,0.25);c.mesh.position.set(c.x,(c.y||0)+c.bo,c.z);c.mesh.rotation.y=c.h;if(c.mode!=='player'&&!c.boat){c.roll=(c.roll||0)*0.9;c.dive=(c.dive||0)*0.9;}c.mesh.rotation.x=-Math.atan(c.pitch||0)+(c.dive||0);c.mesh.rotation.z=c.roll||0;
     const roll=c.s*0.42;for(const w of c.wheels)w.rotation.x+=roll*dt/0.42*0.42;
     if(c.sirR){const on=c.chase||(c.mode==='player'&&S.stars>0);const ph=Math.floor(clock*6)%2;c.sirR.emissiveIntensity=on?(ph?2:0.1):0;c.sirB.emissiveIntensity=on?(ph?0.1:2):0;}
   }
@@ -2521,7 +2523,7 @@ function updateCars(dt){
     if(rv<0){const j=-(1.3)*rv/2;A.vx-=j*nx;A.vz-=j*nz;B.vx+=j*nx;B.vz+=j*nz;
       A.s=A.vx*Math.sin(A.h)+A.vz*Math.cos(A.h);B.s=B.vx*Math.sin(B.h)+B.vz*Math.cos(B.h);
       const imp=-rv;
-      if(imp>4){A.hp-=imp*1.3;B.hp-=imp*1.3;
+      if(imp>4){A.hp-=imp*1.3;B.hp-=imp*1.3;for(const o of [A,B]){o.av=(o.av||0)+rand(-1,1)*imp*0.05;o.bv=(o.bv||0)-imp*0.04;if(o.mode!=='player'&&!o.boat)o.h+=rand(-1,1)*imp*0.012;}
         const pc=A.mode==='player'?A:B.mode==='player'?B:null,other=pc===A?B:A;
         if(pc){S.shake=Math.max(S.shake,Math.min(0.8,imp/25));thud(Math.min(1,imp/20));if(other.mode==='police'&&!other.chase&&imp>6)addCrime(1,'Rammed a cop');}
         else if(Math.hypot(A.x-player.x,A.z-player.z)<60)thud(Math.min(.6,imp/30));
@@ -2836,7 +2838,7 @@ function updateHUD(){
   if(sa){pr=sa.label;pk=sa.key==='F'?(isTouch?'PUNCH':(pad.on?'B':'R / Click')):(isTouch?'CAR':(pad.on?'D-pad →':'E'));}
   else if(!c&&!player.inAir&&S.deadT<=0&&nearestAir()){const a=nearestAir();pr=a.type==='heli'?'Fly the helicopter':'Fly the '+a.T.name.toLowerCase();}
   else if(!c&&!player.inAir&&S.deadT<=0){let near=null,bd=4.2;for(const k of cars){if(k.mode==='wreck')continue;if(Math.abs((k.y||0)-player.y)>2)continue;const d=Math.hypot(k.x-player.x,k.z-player.z);if(d<bd){bd=d;near=k;}}
-    if(near)pr=(near.mode==='traffic'||near.mode==='police'||near.mode==='hwy')?'Carjack':'Get in';}
+    if(near)pr=(near.mode==='traffic'||near.mode==='police'||near.mode==='hwy'||near.mode==='rural')?'Carjack':'Get in';}
   else if(c&&Math.hypot(c.vx,c.vz)<9)pr='';
   if(S.entry||S.exit)pr='';const pe=$('prompt');pe.hidden=!pr;if(pr)pe.innerHTML='<kbd>'+pk+'</kbd>'+pr;
 }
@@ -2851,7 +2853,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -2987,9 +2989,131 @@ async function mpInit(){try{let room=null;
   if(window.claude&&typeof window.claude.use==='function'){try{room=await window.claude.use('room');}catch(e){}if(room){try{MP.user=await window.claude.use('user');}catch(e){}}}
   if(!room&&/^https?:$/.test(location.protocol))room=await wsRoom();
   if(!room)return;MP.room=room;
-  try{MP.nick=localStorage.getItem('sunline-nick');}catch(e){}if(!MP.nick){MP.nick='Player '+randi(100,999);try{localStorage.setItem('sunline-nick',MP.nick);}catch(e){}}
+  try{MP.nick=localStorage.getItem('sunline-nick');}catch(e){}{const qn=new URLSearchParams(location.search).get('nick');if(qn)MP.nick=qn.replace(/[^\w \-]/g,'').slice(0,16);}if(!MP.nick){MP.nick='Player '+randi(100,999);try{localStorage.setItem('sunline-nick',MP.nick);}catch(e){}}
   room.onPeers(ch=>{for(const p of ch.joined)if(!p.sameTab&&p.kind==='viewer')toast('A player joined the game');for(const p of ch.left)if(!p.sameTab&&MP.remotes.has(p.peer))toast('A player left the game');mpSync(ch.peers);},()=>{});
   MP.ready=true;mpPanel();}catch(e){}}
+
+// ---------- physics props + a living world: country traffic, boats, wildlife, campsites, farms, fishermen ----------
+const LIFE={props:[],deer:[],gators:[],camps:[],tractors:[],fishers:[],flocks:[],t:0};
+const mkm=(parts)=>mergeParts(parts.map(p=>part(p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],p[8],p[9],p[10])));
+const VCOL=new THREE.MeshLambertMaterial({vertexColors:true});
+// --- physical props that fly when hit
+const PROP_KINDS={
+  cone:{geo:mkm([[taper(0.05,0.28,0.7,10),0xff6a00,0,0.38,0],[taper(0.16,0.2,0.1,10),0xffffff,0,0.45,0],[HB.box,0x222222,0,0.02,0,0,0,0,0.5,0.04,0.5]]),r:0.32,m:0.5},
+  barrel:{geo:mkm([[taper(0.4,0.4,1,14),0xc0392b,0,0.5,0],[taper(0.41,0.41,0.06,14),0x7a1f1f,0,0.3,0],[taper(0.41,0.41,0.06,14),0x7a1f1f,0,0.72,0]]),r:0.45,m:1.6},
+  crate:{geo:mkm([[HB.box,0xa0743f,0,0.5,0,0,0,0,1,1,1],[HB.box,0x7a5530,0,0.5,0.505,0,0,0,0.9,0.12,0.02],[HB.box,0x7a5530,0,0.5,-0.505,0,0,0,0.9,0.12,0.02]]),r:0.6,m:1.2}};
+function addProp(kind,x,z,y){const K=PROP_KINDS[kind];const m=new THREE.Mesh(K.geo,VCOL);m.castShadow=true;const gy=y!=null?y:groundAt(x,z);m.position.set(x,gy,z);m.rotation.y=rand(0,6.28);scene.add(m);
+  LIFE.props.push({m,K,x,y:gy,z,vx:0,vy:0,vz:0,ax:0,ay:0,az:0,rx:0,ry:m.rotation.y,rz:0,sleep:true,base:gy});}
+{for(let k=0;k<14;k++){const i=randi(1,N-1),j=randi(1,N-1),p=nodePos(i,j),dir=Math.random()<0.5,ox=dir?14:0,oz=dir?0:14;
+   for(let c=0;c<6;c++){const t=c*2.2-5.5;addProp('cone',p.x+(dir?ox+t:3.5),p.z+(dir?3.5:oz+t));}addProp('barrel',p.x+(dir?ox-8:5.5),p.z+(dir?5.5:oz-8));addProp('barrel',p.x+(dir?ox+8:5.5),p.z+(dir?5.5:oz+8));}
+ for(let k=0;k<10;k++){const x=rand(-280,-60),z=rand(-372,-345);addProp('crate',x,z,0.04);if(Math.random()<0.6)addProp('crate',x+1.1,z,0.04);if(Math.random()<0.5)addProp('barrel',x,z+1.4,0.04);}
+ for(let k=0;k<12;k++){const x=rand(ISLAND.x0+30,ISLAND.x1-30),z=-152+rand(-60,60);if(roofAt(x,z)>0)continue;addProp(Math.random()<0.6?'crate':'barrel',x,z,0.02);}}
+function updateProps(dt){const tg=player.inCar||player;
+  for(const p of LIFE.props){if(Math.abs(p.x-tg.x)+Math.abs(p.z-tg.z)>90)continue;
+    for(const c of cars){if(Math.abs(c.x-p.x)>4||Math.abs(c.z-p.z)>4||Math.abs((c.y||0)-p.y)>2)continue;const sp=Math.hypot(c.vx,c.vz);const d=Math.hypot(c.x-p.x,c.z-p.z);
+      if(d<p.K.r+1.9&&sp>1.5){const kk=1.15/Math.pow(p.K.m,0.35);p.vx=c.vx*kk+(p.x-c.x)*0.8;p.vz=c.vz*kk+(p.z-c.z)*0.8;p.vy=2+sp*0.22;p.ax=rand(-8,8);p.az=rand(-8,8);p.ay=rand(-4,4);p.sleep=false;
+        c.vx*=1-0.04*p.K.m;c.vz*=1-0.04*p.K.m;if(player.inCar===c)thud(0.15*p.K.m);}}
+    if(!player.inCar&&p.sleep){const dx=p.x-player.x,dz=p.z-player.z,d=Math.hypot(dx,dz),sp=Math.hypot(player.vx,player.vz);if(d<p.K.r+0.45&&sp>1){p.vx=dx/d*sp*0.9/p.K.m;p.vz=dz/d*sp*0.9/p.K.m;p.vy=sp>6?1.5:0.4;p.ax=rand(-3,3);p.az=rand(-3,3);p.sleep=false;}}
+    if(p.sleep)continue;
+    p.vy-=20*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.rx+=p.ax*dt;p.ry+=p.ay*dt;p.rz+=p.az*dt;
+    const n=collide(p,p.K.r);if(n){const vn=p.vx*n.x+p.vz*n.z;if(vn<0){p.vx-=n.x*vn*1.5;p.vz-=n.z*vn*1.5;}}
+    const gy=groundAt(p.x,p.z);if(p.y<=gy){p.y=gy;if(p.vy<-1.5){p.vy=-p.vy*0.32;}else p.vy=0;p.vx*=0.72;p.vz*=0.72;p.ax*=0.6;p.ay*=0.6;p.az*=0.6;
+      if(Math.abs(p.vx)+Math.abs(p.vz)+Math.abs(p.vy)<0.25){p.sleep=true;p.vx=p.vz=p.vy=0;}}
+    p.m.position.set(p.x,p.y,p.z);p.m.rotation.set(p.rx,p.ry,p.rz);}}
+// --- country traffic on the coast road, connectors and Port Sable
+const RURAL_PATHS=ROADS2.map(pts=>{const segs=[];let len=0;for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<0.5)continue;segs.push({a,b,L,start:len,ux:(b[0]-a[0])/L,uz:(b[1]-a[1])/L});len+=L;}return{segs,len};}).filter(p=>p.len>120);
+function ruralPoint(P,d){d=clamp(d,0,P.len);let s=P.segs[P.segs.length-1];for(const q of P.segs)if(d<=q.start+q.L){s=q;break;}const t=(d-s.start)/s.L;return{x:s.a[0]+(s.b[0]-s.a[0])*t,z:s.a[1]+(s.b[1]-s.a[1])*t,ux:s.ux,uz:s.uz};}
+function placeRural(c){const R=c.rp,p=ruralPoint(R.P,R.d),fx=p.ux*R.dir,fz=p.uz*R.dir;c.x=p.x-fz*3.6;c.z=p.z+fx*3.6;c.y=0;const th=Math.atan2(fx,fz);c.h=R.init?c.h+angDiff(c.h,th)*0.35:th;R.init=true;}
+function spawnRural(far){for(let k=0;k<12;k++){const P=pick(RURAL_PATHS),d=rand(0,P.len),q=ruralPoint(P,d);if(far&&Math.hypot(q.x-player.x,q.z-player.z)<150)continue;
+  const c=spawnCar(q.x,q.z,0,'rural',false);c.rp={P,d,dir:Math.random()<0.5?1:-1};c.cruise=rand(14,22);c.s=c.cruise;placeRural(c);return c;}}
+function updateRuralCar(c,dt){const R=c.rp;let desired=c.cruise;const fx=Math.sin(c.h),fz=Math.cos(c.h);
+  const ahead=(ox,oz)=>{const dx=ox-c.x,dz=oz-c.z,a=dx*fx+dz*fz;return a>0&&a<18&&Math.abs(dx*fz-dz*fx)<2.4?a:0;};
+  if(!player.inCar){const a=ahead(player.x,player.z);if(a)desired=Math.min(desired,(a-5)*1.5);}
+  for(const o of cars){if(o===c||Math.abs(o.x-c.x)>20||Math.abs(o.z-c.z)>20)continue;const a=ahead(o.x,o.z);if(a)desired=Math.min(desired,(a-7)*1.4);}
+  for(const d of LIFE.deer){if(d.dead||Math.abs(d.x-c.x)>20||Math.abs(d.z-c.z)>20)continue;const a=ahead(d.x,d.z);if(a)desired=Math.min(desired,(a-6)*1.2);}
+  desired=Math.max(0,desired);c.s+=clamp(desired-c.s,-25*dt,6*dt);R.d+=c.s*R.dir*dt;if(R.d>R.P.len||R.d<0){R.dir*=-1;R.d=clamp(R.d,0,R.P.len);R.init=false;}
+  placeRural(c);c.vx=Math.sin(c.h)*c.s;c.vz=Math.cos(c.h)*c.s;}
+for(let i=0;i<26;i++)spawnRural(false);
+// --- boats cruising offshore around the island (and under the bridge)
+const SEA_PATH=(()=>{const pts=COAST.map((p,k)=>{const a=k/COAST.length*Math.PI*2;return[p[0]+Math.cos(a)*120,p[1]+Math.sin(a)*120];});pts.push(pts[0]);const segs=[];let len=0;
+  for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<0.5)continue;segs.push({a,b,L,start:len,ux:(b[0]-a[0])/L,uz:(b[1]-a[1])/L});len+=L;}return{segs,len};})();
+function updateAIBoat(c,dt){const R=c.sp;R.d=(R.d+c.cruise*R.dir*dt+SEA_PATH.len)%SEA_PATH.len;const p=ruralPoint(SEA_PATH,R.d),fx=p.ux*R.dir,fz=p.uz*R.dir;
+  c.x=p.x-fz*R.lane;c.z=p.z+fx*R.lane;c.h+=angDiff(c.h,Math.atan2(fx,fz))*(1-Math.exp(-2*dt));c.vx=Math.sin(c.h)*c.cruise;c.vz=Math.cos(c.h)*c.cruise;
+  const L=2.6,hb=waveH(c.x+fx*L,c.z+fz*L,clock),hs=waveH(c.x-fx*L,c.z-fz*L,clock),w=waveH(c.x,c.z,clock);c.y=lerp(c.y||w,w+0.12,1-Math.exp(-6*dt));c.pitch=lerp(c.pitch||0,(hb-hs)/(2*L)+0.06,1-Math.exp(-5*dt));
+  if(Math.abs(c.x-player.x)+Math.abs(c.z-player.z)<180&&Math.random()<0.5)emit(c.x-fx*3.2,w+0.2,c.z-fz*3.2,rand(-.6,.6),rand(0.6,2),rand(-.6,.6),0xf2f7fa,0.9,0.9,2.5);}
+for(let i=0;i<7;i++){const c=spawnBoat(0,0,0);c.mode='aiboat';c.sp={d:rand(0,SEA_PATH.len),dir:Math.random()<0.5?1:-1,lane:rand(-30,30)};c.cruise=rand(10,17);if(i%3===2){c.jetski=true;c.mesh.scale.set(0.55,0.75,0.5);}updateAIBoat(c,0.01);}
+// --- deer herds in the forests (they graze, run from you, and can be hit)
+function makeDeer(buck){const g=new THREE.Group(),fur=0x8b5a2b,lt=0xd9c2a0;
+  const body=[[HB.sph,fur,0,1.05,0,0,0,0,0.33,0.36,0.72],[HB.sph,lt,0,0.92,0.05,0,0,0,0.26,0.2,0.55],[taper(0.09,0.13,0.55,8),fur,0,1.38,0.58,-0.65,0,0],[HB.sph,fur,0,1.63,0.82,0,0,0,0.12,0.13,0.24],
+    [HB.sph,0x2a1a10,0,1.6,1.04,0,0,0,0.05,0.04,0.04],[HB.lo,fur,-0.09,1.76,0.74,0,0,0.5,0.03,0.08,0.05],[HB.lo,fur,0.09,1.76,0.74,0,0,-0.5,0.03,0.08,0.05],[HB.lo,lt,0,1.15,-0.72,0,0,0,0.07,0.1,0.06]];
+  if(buck)for(const sd of [-1,1])body.push([HB.box,0x6b5133,sd*0.08,1.92,0.72,0,0,sd*0.35,0.025,0.35,0.025],[HB.box,0x6b5133,sd*0.16,2.02,0.78,0.5,0,sd*0.9,0.02,0.2,0.02]);
+  const bm=new THREE.Mesh(mkm(body),VCOL);bm.castShadow=true;g.add(bm);const legs=[];
+  for(const [lx,lz] of [[-0.16,0.42],[0.16,0.42],[-0.16,-0.45],[0.16,-0.45]]){const pv=new THREE.Group();pv.position.set(lx,0.95,lz);g.add(pv);const lm=new THREE.Mesh(taper(0.045,0.03,0.95,6),VCOL.clone());lm.material=new THREE.MeshLambertMaterial({color:0x6b4423});lm.position.y=-0.47;pv.add(lm);legs.push(pv);}
+  scene.add(g);return{g,legs};}
+for(const F of FORESTS)for(let h=0;h<2;h++){const a=Math.random()*6.28,r=Math.random()*F.r*0.6,hx=F.x+Math.cos(a)*r,hz=F.z+Math.sin(a)*r;if(landSDF(hx,hz)>-60)continue;
+  for(let k=0;k<randi(3,6);k++){const x=hx+rand(-8,8),z=hz+rand(-8,8);const m=makeDeer(k===0);LIFE.deer.push({m,x,z,hx,hz,h:rand(0,6.28),tx:x,tz:z,s:0,state:'graze',t:rand(1,6),phase:Math.random()*6,dead:false});}}
+function updateDeer(dt){const tg=player.inCar||player;
+  for(const d of LIFE.deer){const far=Math.abs(d.x-tg.x)+Math.abs(d.z-tg.z)>320;d.m.g.visible=!far;if(far)continue;
+    if(d.dead){d.t-=dt;d.m.g.rotation.z=lerp(d.m.g.rotation.z,1.5,1-Math.exp(-6*dt));d.m.g.position.y=lerp(d.m.g.position.y,0.35,1-Math.exp(-6*dt));if(d.t<=0){d.dead=false;d.x=d.hx;d.z=d.hz;d.m.g.rotation.z=0;d.m.g.position.y=0;}continue;}
+    const dpx=d.x-tg.x,dpz=d.z-tg.z,dp=Math.hypot(dpx,dpz),tsp=player.inCar?Math.hypot(player.inCar.vx,player.inCar.vz):Math.hypot(player.vx,player.vz);
+    if(dp<(player.inCar?38:20)&&(tsp>1||dp<9)&&d.state!=='flee'){d.state='flee';d.t=rand(4,6);d.fx=dpx/(dp||1);d.fz=dpz/(dp||1);}
+    let sp=0;if(d.state==='flee'){sp=10;d.t-=dt;d.tx=d.x+d.fx*20;d.tz=d.z+d.fz*20;if(d.t<=0){d.state='graze';d.t=rand(2,5);d.hx=d.x;d.hz=d.z;}}
+    else{d.t-=dt;if(d.t<=0){if(d.state==='graze'){d.state='walk';d.tx=d.hx+rand(-14,14);d.tz=d.hz+rand(-14,14);d.t=rand(4,9);}else{d.state='graze';d.t=rand(3,8);}}if(d.state==='walk')sp=1.3;}
+    const dx=d.tx-d.x,dz=d.tz-d.z,l=Math.hypot(dx,dz);if(sp>0&&l>0.5){d.h+=angDiff(d.h,Math.atan2(dx,dz))*(1-Math.exp(-6*dt));d.x+=Math.sin(d.h)*sp*dt;d.z+=Math.cos(d.h)*sp*dt;if(landSDF(d.x,d.z)>-20){d.x-=Math.sin(d.h)*sp*dt*2;d.z-=Math.cos(d.h)*sp*dt*2;d.state='graze';}}
+    else if(d.state==='walk')d.state='graze';
+    for(const c of cars){if(Math.abs(c.x-d.x)>3||Math.abs(c.z-d.z)>3)continue;const cs=Math.hypot(c.vx,c.vz);if(cs>6&&Math.hypot(c.x-d.x,c.z-d.z)<2.4){d.dead=true;d.t=25;c.hp-=6;thud(0.5);for(let i=0;i<8;i++)emit(d.x,1,d.z,rand(-2,2),rand(1,3),rand(-2,2),0x6b4423,0.6,0.5,1);}}
+    d.phase+=sp*dt*(sp>5?2.2:4.5);const sw=Math.sin(d.phase)*(sp>5?0.9:0.45)*(sp>0?1:0);d.m.legs[0].rotation.x=sw;d.m.legs[3].rotation.x=sw;d.m.legs[1].rotation.x=-sw;d.m.legs[2].rotation.x=-sw;
+    d.m.g.position.set(d.x,sp>5?Math.abs(Math.sin(d.phase))*0.25:0,d.z);d.m.g.rotation.set(d.state==='graze'?0.18:0,d.h,0);}}
+// --- bird flocks (gulls over the beach and bays, dark birds over the countryside)
+const wingGeo=(s)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0.18,s*0.95,0.02,-0.05,0,0,-0.2],3));g.computeVertexNormals();return g;};
+const BIRD_N=150,birdL=new THREE.InstancedMesh(wingGeo(-1),new THREE.MeshBasicMaterial({color:0xf2f2f2,side:THREE.DoubleSide}),BIRD_N),birdR=new THREE.InstancedMesh(wingGeo(1),new THREE.MeshBasicMaterial({color:0xf2f2f2,side:THREE.DoubleSide}),BIRD_N);
+birdL.frustumCulled=birdR.frustumCulled=false;scene.add(birdL,birdR);
+const FLOCKS=[[HALF+50,0,26,90],[HALF+40,220,30,70],[-150,120,40,110],[-900,-400,45,140],[-1500,600,50,120],[SWAMPS[0].x,SWAMPS[0].z,28,90],[-1700,300,35,100],[(ISLAND.x0+ISLAND.x1)/2,-152,24,60]];
+const birds=[];for(let i=0;i<BIRD_N;i++){const f=i%FLOCKS.length;birds.push({f,a:Math.random()*6.28,r:rand(0.4,1),y:rand(-4,6),sp:rand(0.18,0.32)*(Math.random()<0.5?1:-1),ph:Math.random()*6.28});}
+{const dark=new THREE.Color(0x2a2a2a),wht=new THREE.Color(0xf2f2f2);birds.forEach((b,i)=>{const c=b.f<2||b.f===7?wht:dark;birdL.setColorAt(i,c);birdR.setColorAt(i,c);});}
+const _bm=new THREE.Matrix4(),_bq=new THREE.Quaternion(),_be=new THREE.Euler(),_bv=new THREE.Vector3(),_bs=new THREE.Vector3(1,1,1);
+function updateBirds(dt){for(let i=0;i<BIRD_N;i++){const b=birds[i],F=FLOCKS[b.f];b.a+=b.sp*dt;const cx=F[0]+Math.cos(clock*0.05+b.f)*30,cz=F[1]+Math.sin(clock*0.04+b.f)*30,r=F[3]*b.r;
+    const x=cx+Math.cos(b.a)*r,z=cz+Math.sin(b.a)*r,y=F[2]+b.y+Math.sin(clock*0.7+b.ph)*2,head=Math.atan2(-Math.sin(b.a)*Math.sign(b.sp),Math.cos(b.a)*Math.sign(b.sp)),fl=Math.sin(clock*9+b.ph)*0.6;
+    _bv.set(x,y,z);_be.set(0,head,fl);_bq.setFromEuler(_be);_bs.set(1.6,1.6,1.6);_bm.compose(_bv,_bq,_bs);birdL.setMatrixAt(i,_bm);_be.set(0,head,-fl);_bq.setFromEuler(_be);_bm.compose(_bv,_bq,_bs);birdR.setMatrixAt(i,_bm);}
+  birdL.instanceMatrix.needsUpdate=birdR.instanceMatrix.needsUpdate=true;}
+// --- alligators in the swamp pools
+for(const p of SWAMP_POOLS.slice(0,14)){const g=new THREE.Mesh(mkm([[HB.sph,0x2f3d24,0,0,0,0,0,0,0.42,0.18,1.3],[HB.sph,0x2f3d24,0,0.02,1.35,0,0,0,0.22,0.1,0.55],[taper(0.12,0.02,1.6,6),0x2f3d24,0,0,-1.9,Math.PI/2,0,0],
+    [HB.lo,0xd8d070,-0.12,0.12,1.15,0,0,0,0.04],[HB.lo,0xd8d070,0.12,0.12,1.15,0,0,0,0.04],[HB.box,0x55603a,0,0.13,0,0,0,0,0.25,0.04,1.4]]),VCOL);
+  scene.add(g);LIFE.gators.push({g,p,a:Math.random()*6.28,cd:0});}
+function updateGators(dt){for(const G of LIFE.gators){const far=Math.abs(G.p.x-player.x)+Math.abs(G.p.z-player.z)>260;G.g.visible=!far;if(far)continue;
+    G.a+=dt*0.08;const r=G.p.r*0.55,x=G.p.x+Math.cos(G.a)*r,z=G.p.z+Math.sin(G.a)*r;G.cd=Math.max(0,G.cd-dt);
+    const dx=player.x-x,dz=player.z-z,d=Math.hypot(dx,dz);let gx=x,gz=z,hd=G.a+Math.PI/2;
+    if(!player.inCar&&!player.inAir&&d<7&&inSwampWater(player.x,player.z)){gx=lerp(x,player.x,0.5);gz=lerp(z,player.z,0.5);hd=Math.atan2(dx,dz);if(d<4.5&&G.cd<=0){G.cd=3;damagePlayer(14,'Bitten by an alligator');toast('An alligator bit you!','bad');S.shake=0.5;thud(0.5);}}
+    G.g.position.set(gx,0.24+Math.sin(clock*1.3+G.a)*0.03,gz);G.g.rotation.y=hd;}}
+// --- campsites in the woods: tents, campfires, campers sitting around
+const fireMat=new THREE.SpriteMaterial({map:glowMat.map,color:0xff8a30,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+for(const F of FORESTS)for(let k=0;k<2;k++){const a=Math.random()*6.28,r=F.r*rand(0.2,0.7),x=F.x+Math.cos(a)*r,z=F.z+Math.sin(a)*r;if(landSDF(x,z)>-80||roofAt(x,z)>0)continue;
+  const tent=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,2.6,3,1),new THREE.MeshLambertMaterial({color:pick([0xe76f51,0x2a9d8f,0xf4a261,0x457b9d])}));tent.rotation.set(0,0,Math.PI/2);tent.rotateX(Math.PI/2);tent.position.set(x+4,1.1,z);tent.castShadow=true;scene.add(tent);addCollider(x+2.6,z-1.4,x+5.4,z+1.4,2.2);
+  const logs=new THREE.Mesh(mkm([[taper(0.12,0.12,1.2,6),0x5a3a1e,0,0.12,0,0,0,Math.PI/2,1,1,1],[taper(0.12,0.12,1.2,6),0x5a3a1e,0,0.15,0,0,Math.PI/2,Math.PI/2,1,1,1],...[0,1,2,3,4,5,6,7].map(i=>[HB.lo,0x777777,Math.cos(i/8*6.28)*0.75,0.08,Math.sin(i/8*6.28)*0.75,0,0,0,0.16])]),VCOL);logs.position.set(x,0,z);scene.add(logs);
+  const fire=new THREE.Sprite(fireMat.clone());fire.position.set(x,0.9,z);fire.scale.set(2.2,2.2,1);scene.add(fire);
+  const campers=[];for(let c=0;c<randi(2,3);c++){const ang=c/3*6.28+0.5,h=makeHuman(Object.assign(randomLook(),{umbrella:false,phone:false,bag:null}));h.g.position.set(x+Math.cos(ang)*2.1,-0.25,z+Math.sin(ang)*2.1);h.g.rotation.y=Math.atan2(-Math.cos(ang),-Math.sin(ang));campers.push(h);}
+  LIFE.camps.push({x,z,fire,campers});}
+function updateCamps(dt){for(const C of LIFE.camps){const near=Math.abs(C.x-player.x)+Math.abs(C.z-player.z)<200;C.fire.visible=near;for(const h of C.campers)h.g.visible=near;if(!near)continue;
+    const fl=1+Math.sin(clock*13+C.x)*0.12+Math.sin(clock*7.3)*0.08;C.fire.scale.set(2.2*fl,2.6*fl,1);C.fire.material.opacity=0.75+night*0.25;
+    if(Math.random()<0.6)emit(C.x+rand(-0.3,0.3),0.4,C.z+rand(-0.3,0.3),rand(-0.3,0.3),rand(1.5,3),rand(-0.3,0.3),pick([0xffb347,0xff6a2a,0xffe08a]),rand(0.4,0.8),0.5,0.6);
+    if(Math.random()<0.15)emit(C.x,1.8,C.z,rand(-0.3,0.3),rand(1,2),rand(-0.3,0.3),0x555555,2.2,1,3);
+    for(const h of C.campers){animHuman(h,0,0,false);seatPose(h,1);h.shR.rotation.x=-0.9+Math.sin(clock*0.8+C.x)*0.15;h.elR.rotation.x=-1.1;}}}
+// --- tractors working the farm fields
+for(let k=0;k<3;k++){const g=new THREE.Group();const add=(geo,c,x,y,z)=>{const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:c}));m.position.set(x,y,z);m.castShadow=true;g.add(m);return m;};
+  add(new THREE.BoxGeometry(1.6,1.0,3.0),0x2e7d32,0,1.1,0.3);add(new THREE.BoxGeometry(1.4,1.3,1.3),0x2e7d32,0,2.1,-0.6);add(new THREE.BoxGeometry(1.2,0.9,0.05),0x9fd3e6,0,2.2,0.06);
+  for(const sd of [-1,1]){const rw=add(new THREE.CylinderGeometry(0.85,0.85,0.5,14),0x1a1a1a,sd*1.0,0.85,-0.7);rw.rotation.z=Math.PI/2;const fw=add(new THREE.CylinderGeometry(0.45,0.45,0.35,12),0x1a1a1a,sd*0.85,0.45,1.3);fw.rotation.z=Math.PI/2;}
+  add(new THREE.CylinderGeometry(0.06,0.06,0.9,6),0x333333,0.5,2.2,1.2);scene.add(g);
+  const x0=FARM.x0+80+k*240;LIFE.tractors.push({g,x:x0,z:FARM.z0+60,z0:FARM.z0+40,z1:FARM.z1-40,dir:1,lane:x0});}
+function updateTractors(dt){for(const T of LIFE.tractors){const near=Math.abs(T.x-player.x)+Math.abs(T.z-player.z)<400;T.g.visible=near;if(!near)continue;
+    T.z+=T.dir*3*dt;if(T.z>T.z1||T.z<T.z0){T.dir*=-1;T.lane+=6;if(T.lane>T.x+60)T.lane=T.x-60;}T.g.position.set(T.lane,0,T.z);T.g.rotation.y=T.dir>0?0:Math.PI;
+    if(Math.random()<0.4)emit(T.lane+rand(-1,1),0.5,T.z-T.dir*2,rand(-.5,.5),rand(0.3,1),rand(-.5,.5),0xc9b28a,1.4,1.2,2.5);}}
+// --- fishermen on the docks and the pier
+{const spots=[[HALF+112,150,Math.PI/2]];for(const k of [128,192,64]){const p=COAST[k],a=k/256*Math.PI*2,dx=Math.round(Math.cos(a)),dz=Math.round(Math.sin(a));spots.push([p[0]+dx*42,p[1]+dz*42,Math.atan2(dx,dz)]);}
+ for(const [x,z,h] of spots){const fm=makeHuman(Object.assign(randomLook(),{hat:'cap',umbrella:false,phone:false,bag:null}));const y=Math.max(0.8,roofAt(x,z));fm.g.position.set(x,y,z);fm.g.rotation.y=h;
+   const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.025,3.2,5),new THREE.MeshLambertMaterial({color:0x222222}));rod.position.set(0.25,1.2,0.9);rod.rotation.x=1.0;fm.g.add(rod);LIFE.fishers.push(fm);}}
+function updateLife(dt){updateProps(dt);updateDeer(dt);updateBirds(dt);updateGators(dt);updateCamps(dt);updateTractors(dt);
+  for(const f of LIFE.fishers){animHuman(f,0,0,false);f.shR.rotation.x=-0.7;f.shL.rotation.x=-0.6;f.elR.rotation.x=-0.6;}
+  LIFE.t-=dt;if(LIFE.t<=0){LIFE.t=8;if(cars.filter(c=>c.mode==='rural').length<26)spawnRural(true);}}
 
 function start(){
   S.started=true;mpInit();scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
