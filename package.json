@@ -1,0 +1,17 @@
+{
+  "name": "sunline-city",
+  "version": "1.0.0",
+  "description": "Open-world 3D browser game with online versus play",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
