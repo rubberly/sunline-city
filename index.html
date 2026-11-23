@@ -175,7 +175,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/SSAOShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/SSAOPass.js"></script>
 <script>
-(function(){
+(function(){if(/[?&]debug=1/.test(location.search))window.__sun=function(c){return eval(c);};
 'use strict';
 const $=id=>document.getElementById(id);
 const rand=(a,b)=>a+Math.random()*(b-a), randi=(a,b)=>Math.floor(rand(a,b+1));
@@ -260,7 +260,7 @@ try{if(THREE.EffectComposer&&THREE.RenderPass&&THREE.ShaderPass&&THREE.UnrealBlo
   composer=new THREE.EffectComposer(renderer,rt);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(innerWidth,innerHeight);
   renderPassRef=new THREE.RenderPass(scene,camera);composer.addPass(renderPassRef);
   if(THREE.SSAOPass){try{ssaoPass=new THREE.SSAOPass(scene,camera,innerWidth,innerHeight);ssaoPass.kernelRadius=1.4;ssaoPass.minDistance=0.0015;ssaoPass.maxDistance=0.06;ssaoPass.enabled=false;composer.addPass(ssaoPass);}catch(e){ssaoPass=null;}}
-  bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),0.6,0.6,0.7);composer.addPass(bloomPass);
+  bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),0.6,0.6,0.84);composer.addPass(bloomPass);
   if(THREE.AfterimagePass){afterPass=new THREE.AfterimagePass(0);composer.addPass(afterPass);}
   gradePass=new THREE.ShaderPass(GradeShader);composer.addPass(gradePass);
   if(THREE.FXAAShader){fxaaPass=new THREE.ShaderPass(THREE.FXAAShader);composer.addPass(fxaaPass);}
@@ -1647,7 +1647,7 @@ function makeShop(spec,type,name){
   const interior=new THREE.Group();g.add(interior);
   const wallC=pick(type.walls),[signBg,signFg]=pick(type.signs),innerC=pick(type.inner);
   const wallM=new THREE.MeshLambertMaterial({color:wallC,emissive:wallC,emissiveIntensity:0.1});
-  const innerM=new THREE.MeshLambertMaterial({color:innerC,emissive:innerC,emissiveIntensity:0.22});
+  const innerM=new THREE.MeshLambertMaterial({color:new THREE.Color(innerC).multiplyScalar(0.86),emissive:innerC,emissiveIntensity:0.07});
   const box=(w,h,d,x,y,z,mat,parent,shadow)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);if(shadow)m.castShadow=true;m.receiveShadow=true;(parent||g).add(m);return m;};
   // floor with per-shop tiling
   const fc=pick(type.floorCols);const fg=new THREE.PlaneGeometry(SW-0.8,SD-0.8);const uv=fg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*SW/2.4,uv.getY(i)*SD/2.4);
@@ -2042,7 +2042,7 @@ const FLOOR_PLANS={
       F.act(-F.hw+8,F.hd-5,'Play the arcade ($2)',()=>{if(S.money<2)return;addMoney(-2);toast('High score: '+randi(1000,99999)+' · your initials are on the board');});
       F.act(0,F.hd-4,'Catch a movie ($12)',()=>{if(S.money<12){toast('Not enough cash','bad');return;}addMoney(-12);fadeTo(()=>{S.time=(S.time+2/24)%1;toast('Two hours later... the ending was terrible');});});}]]};
 function buildFloors(hall,sp,T,o){const plan=FLOOR_PLANS[sp.kind];if(!plan||!T.upper)return;const {hw,hd,H,Wf,g,y0,rot}=o,nF=Math.min(plan.length,Math.max(1,Math.floor(T.upper/4.2))),fh=T.upper/nF;
-  hall.floors=[];const inner=new THREE.MeshLambertMaterial({color:T.inner,emissive:T.inner,emissiveIntensity:0.3}),winM=new THREE.MeshLambertMaterial({color:0x223a50,emissive:0x0d2030,emissiveIntensity:0.6});
+  hall.floors=[];const inner=new THREE.MeshLambertMaterial({color:new THREE.Color(T.inner).multiplyScalar(0.86),emissive:T.inner,emissiveIntensity:0.1}),winM=new THREE.MeshLambertMaterial({color:0x223a50,emissive:0x0d2030,emissiveIntensity:0.6});
   const elevM=new THREE.MeshPhongMaterial({color:0xb8bec4,shininess:80,specular:0x999999});
   for(let k=1;k<=nF;k++){const ly=H+0.4+(k-1)*fh,wy=y0+ly,grp=new THREE.Group();grp.position.y=ly;grp.visible=false;g.add(grp);const people=[];
     const box=(w,h,d,x,y,z,m)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);b.receiveShadow=true;grp.add(b);return b;};
@@ -2094,7 +2094,7 @@ function makePublic(sp){
   const Wf=(lx,lz)=>rot===0?[cx+lx,cz+lz]:[cx-lx,cz-lz];
   const R=(x0,z0,x1,z1,h)=>{const a=Wf(x0,z0),b=Wf(x1,z1);return addCollider(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1]),h);};
   const g=new THREE.Group();g.position.set(cx,y0,cz);g.rotation.y=rot;scene.add(g);const ib=new THREE.Group();g.add(ib);
-  const wallM=new THREE.MeshLambertMaterial({color:T.wall}),innerM=new THREE.MeshLambertMaterial({color:T.inner,emissive:T.inner,emissiveIntensity:0.25});
+  const wallM=new THREE.MeshLambertMaterial({color:T.wall}),innerM=new THREE.MeshLambertMaterial({color:new THREE.Color(T.inner).multiplyScalar(0.86),emissive:T.inner,emissiveIntensity:0.08});
   const box=(w,h,d,x,y,z,m,par,sh)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);if(sh)o.castShadow=true;o.receiveShadow=true;(par||g).add(o);return o;};
   const fg=new THREE.PlaneGeometry(SW-0.8,SD-0.8);{const uv=fg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*SW/2.4,uv.getY(i)*SD/2.4);}
   const fl=new THREE.Mesh(fg,floorMat(T.floor,T.fc[0],T.fc[1]));fl.rotation.x=-Math.PI/2;fl.position.y=0.03;fl.receiveShadow=true;g.add(fl);
