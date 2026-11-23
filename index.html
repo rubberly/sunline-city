@@ -868,7 +868,7 @@ const MARINAS=[];const lm2=c=>new THREE.MeshLambertMaterial({color:c});
     const prism=new THREE.BufferGeometry(),pv=[-.5,0,.5,.5,0,.5,.5,1,0,-.5,0,.5,.5,1,0,-.5,1,0,.5,0,-.5,-.5,0,-.5,-.5,1,0,.5,0,-.5,-.5,1,0,.5,1,0],pu=[0,0,4,0,4,2,0,0,4,2,0,2,0,0,4,0,4,2,0,0,4,2,0,2];
     prism.setAttribute('position',new THREE.Float32BufferAttribute(pv,3));prism.setAttribute('uv',new THREE.Float32BufferAttribute(pu,2));prism.computeVertexNormals();
     const gab=new THREE.BufferGeometry();gab.setAttribute('position',new THREE.Float32BufferAttribute([.5,0,.5,.5,0,-.5,.5,1,0,-.5,0,-.5,-.5,0,.5,-.5,1,0],3));gab.computeVertexNormals();
-    const box=new THREE.BoxGeometry(1,1,1),bush=new THREE.IcosahedronGeometry(0.5,1);
+    const box=new THREE.BoxGeometry(1,1,1),bush=new THREE.IcosahedronGeometry(0.5,0);
     const mats={b1:new THREE.MeshLambertMaterial({map:facade(false),emissiveMap:facade(false,true),emissive:0xffffff,emissiveIntensity:0}),b2:new THREE.MeshLambertMaterial({map:facade(true),emissiveMap:facade(true,true),emissive:0xffffff,emissiveIntensity:0}),
       sid:new THREE.MeshLambertMaterial({map:sidingTex}),roof:new THREE.MeshLambertMaterial({map:shingle}),gab:new THREE.MeshLambertMaterial({map:sidingTex}),trim:new THREE.MeshLambertMaterial({color:0xfafafa}),
       gd:new THREE.MeshLambertMaterial({map:gdoor}),door:new THREE.MeshLambertMaterial({map:doorTex}),conc:new THREE.MeshPhongMaterial({color:0xd6d3cc,map:GT.walk,shininess:6,specular:0x111111}),
@@ -3474,7 +3474,7 @@ const WORKERS=[];
    const bag=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.35,0.15),new THREE.MeshLambertMaterial({color:0x2b4a7a}));bag.position.set(0.28,0.95,0);w.h.g.add(bag);}}
 function updateJobs(dt){const hr=S.time*24,t=player.inCar||player;
   if(JOBS.crane&&hr>7&&hr<18)JOBS.crane.rotation.y+=Math.sin(clock*0.05)*dt*0.25;
-  for(const w of WORKERS){const on=hr>=w.hours[0]&&hr<w.hours[1];w.h.g.visible=on;if(!on)continue;const far=Math.abs(w.x-t.x)+Math.abs(w.z-t.z)>260;if(far)continue;w.t+=dt;const h=w.h;
+  for(const w of WORKERS){const on=hr>=w.hours[0]&&hr<w.hours[1],far=Math.abs(w.x-t.x)+Math.abs(w.z-t.z)>260;w.h.g.visible=on&&!far;if(!on||far)continue;w.t+=dt;const h=w.h;
     if(w.pose==='hammer'){animHuman(h,0,0,false);h.shR.rotation.x=-1.6+Math.abs(Math.sin(w.t*5))*1.1;h.elR.rotation.x=-0.6;}
     else if(w.pose==='sit'){animHuman(h,0,0,false);if(typeof seatPose==='function')seatPose(h,1);h.g.position.y=-0.25;}
     else if(w.pose==='work'){const s=Math.sin(w.t*0.35);w.x=w.ox+s*4;h.g.position.x=w.x;h.g.rotation.y=Math.cos(w.t*0.35)>0?Math.PI/2:-Math.PI/2;animHuman(h,w.t*7,1,false);h.shR.rotation.x=h.shL.rotation.x=-0.9;}
@@ -3527,7 +3527,7 @@ const OVAL_P=4*SPEEDWAY.A+2*Math.PI*SPEEDWAY.R;
 // crowd: instanced seated fans that bounce when they cheer (vertex shader, per instance)
 function makeCrowd(spots,teamCols){const n=spots.length;if(!n)return null;const U={uTime:{value:0},uCheer:{value:0.3}};
   const patch=m=>{m.onBeforeCompile=sh=>{sh.uniforms.uTime=U.uTime;sh.uniforms.uCheer=U.uCheer;sh.vertexShader='uniform float uTime;uniform float uCheer;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat ph=float(gl_InstanceID)*1.73;transformed.y+=max(0.0,sin(uTime*7.0+ph))*uCheer*0.3;\n#endif');};return m;};
-  const body=new THREE.InstancedMesh(new THREE.BoxGeometry(0.44,0.62,0.32).translate(0,0.31,0),patch(new THREE.MeshLambertMaterial()),n),head=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.13,1).translate(0,0.78,0),patch(new THREE.MeshLambertMaterial()),n);
+  const body=new THREE.InstancedMesh(new THREE.BoxGeometry(0.44,0.62,0.32).translate(0,0.31,0),patch(new THREE.MeshLambertMaterial()),n),head=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.13,0).translate(0,0.78,0),patch(new THREE.MeshLambertMaterial()),n);
   const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),v=new THREE.Vector3(),one=new THREE.Vector3(1,1,1),col=new THREE.Color(),Y=new THREE.Vector3(0,1,0),SK=[0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0x5c3a21,0xffdbac];
   spots.forEach((p,i)=>{q.setFromAxisAngle(Y,p[3]);v.set(p[0],p[1],p[2]);m4.compose(v,q,one);body.setMatrixAt(i,m4);head.setMatrixAt(i,m4);body.setColorAt(i,col.setHex(Math.random()<0.55?pick(teamCols):pick([0xf4f4f4,0x222222,0x3a86ff,0xe63946,0x7bd389,0xffd166,0x8338ec])));head.setColorAt(i,col.setHex(pick(SK)));});
   body.frustumCulled=head.frustumCulled=false;scene.add(body,head);const c={body,head,U};ARENA.crowds.push(c);return c;}
@@ -3615,8 +3615,8 @@ function drawBoards(){if(ARENA.score){const P=ARENA.play,c=ARENA.score.image,g=c
     order.slice(0,8).forEach((r,i)=>{g.fillStyle=i===0?'#ffd166':'#ffffff';g.fillText(String(r.race.num),64,56+i*58);});ARENA.pylon.needsUpdate=true;}}
 function updateArenas(dt){const t=player.inCar||player,hr=S.time*24;ARENA.boardT=(ARENA.boardT||0)-dt;if(ARENA.boardT<=0){ARENA.boardT=1;drawBoards();}
   const raceOn=(hr>=10&&hr<20)||!!ARENA.RACE,gameOn=hr>=12&&hr<23;
-  if(ARENA.spCrowd){const c=ARENA.spCrowd;c.body.visible=c.head.visible=raceOn;c.U.uTime.value=clock;c.U.uCheer.value=0.25+0.25*Math.max(0,Math.sin(clock*0.4));}
-  if(ARENA.fbCrowd){const c=ARENA.fbCrowd;c.body.visible=c.head.visible=gameOn;c.U.uTime.value=clock;c.U.uCheer.value=ARENA.play&&ARENA.play.cheer>0?1:0.15;}
+  if(ARENA.spCrowd){const c=ARENA.spCrowd;c.body.visible=c.head.visible=raceOn&&Math.abs(t.x-SPEEDWAY.x)+Math.abs(t.z-SPEEDWAY.z)<800;c.U.uTime.value=clock;c.U.uCheer.value=0.25+0.25*Math.max(0,Math.sin(clock*0.4));}
+  if(ARENA.fbCrowd){const c=ARENA.fbCrowd;c.body.visible=c.head.visible=gameOn&&Math.abs(t.x-STADIUM.x)+Math.abs(t.z-STADIUM.z)<700;c.U.uTime.value=clock;c.U.uCheer.value=ARENA.play&&ARENA.play.cheer>0?1:0.15;}
   for(const c of ARENA.race)if(c.mode==='race'&&!raceOn){c.race.cur=0;}
   if(ARENA.race.filter(c=>c.mode==='race').length<10){const s=Math.random()*OVAL_P,p=ovalPt(s,4);const c=spawnCar(p.x,p.z,p.yaw,'race',false,'coupe');c.race={s,off:4,v:rand(44,52),num:randi(2,99),total:0};ARENA.race.push(c);}
   // player race: count laps over the start line
@@ -3624,7 +3624,7 @@ function updateArenas(dt){const t=player.inCar||player,hr=S.time*24;ARENA.boardT
     else{const c=R.car;if(c.z>SPEEDWAY.z&&R.last<SPEEDWAY.x&&c.x>=SPEEDWAY.x&&R.t>5){R.laps++;if(R.laps<3)toast('Lap '+(R.laps+1)+' of 3');}R.last=c.x;
       if(R.laps>=3){const mine=3*OVAL_P;const ahead=ARENA.race.filter((r,i)=>r.mode==='race'&&r.race.total-(R.base[i]||0)>mine).length,pos=ahead+1,prize=[1000,500,250][pos-1]||0;if(prize)addMoney(prize);toast('Checkered flag! You finished P'+pos+(prize?' · +$'+prize:''),prize?'cash':'');ARENA.RACE=null;}}}
   // football play loop
-  const P=ARENA.play;if(!P)return;const ST=STADIUM,near=Math.abs(t.x-ST.x)+Math.abs(t.z-ST.z)<500;for(const f of ARENA.fb)f.h.g.visible=gameOn;ARENA.ball.visible=gameOn;
+  const P=ARENA.play;if(!P)return;const ST=STADIUM,near=Math.abs(t.x-ST.x)+Math.abs(t.z-ST.z)<500;for(const f of ARENA.fb)f.h.g.visible=gameOn&&near;ARENA.ball.visible=gameOn&&near;
   if(gameOn&&near){P.t+=dt;P.clock=Math.max(0,P.clock-dt*3);if(P.clock<=0){P.clock=900;P.q=P.q%4+1;}P.cheer=(P.cheer||0)-dt;const dir=P.off?-1:1,los=P.los;
     if(P.target==null||P.t<=dt+1e-6){P.target=pick([8,9,10]);P.res=null;}
     for(const f of ARENA.fb){const o=f.team===P.off,k=f.k;let x,z;
@@ -3641,7 +3641,7 @@ function updateArenas(dt){const t=player.inCar||player,hr=S.time*24;ARENA.boardT
     if(P.t>10){const gain=P.res?(wr.h.g.position.x-ST.x)-los:0;P.los=clamp(los+(P.res?gain:0),-50,50);P.down=P.res&&Math.abs(gain)>=10?1:P.down+1;
       if(P.los*dir>=50){P.score[P.off]+=7;P.cheer=4;P.off=1-P.off;P.los=P.off?20:-20;P.down=1;}else if(P.down>4){P.off=1-P.off;P.down=1;}P.t=0;}}
   // basketball pickup games
-  for(const C of ARENA.courts){if(Math.abs(t.x-C.cx)+Math.abs(t.z-C.cz)>300)continue;C.t+=dt;const plyr=C.pl.filter(p=>!p.watch),rim=C.rims[C.poss];
+  for(const C of ARENA.courts){const cn=Math.abs(t.x-C.cx)+Math.abs(t.z-C.cz)<300;for(const p of C.pl)p.h.g.visible=cn;C.ball.visible=cn;if(!cn)continue;C.t+=dt;const plyr=C.pl.filter(p=>!p.watch),rim=C.rims[C.poss];
     for(const p of C.pl){if(p.watch){animHuman(p.h,0,0,false);p.h.shR.rotation.x=p.h.shL.rotation.x=C.shot?-2.6:-0.2;continue;}
       if(Math.hypot(p.tx-p.x,p.tz-p.z)<0.4||Math.random()<0.005){const attack=p.team===C.poss;p.tx=rim.x+(C.poss?1:-1)*rand(1,7)*(attack?1:0.8);p.tz=C.cz+rand(-6,6);}
       const dx=p.tx-p.x,dz=p.tz-p.z,d=Math.hypot(dx,dz);if(d>0.1){p.x+=dx/d*Math.min(d,4*dt);p.z+=dz/d*Math.min(d,4*dt);p.h.g.rotation.y=Math.atan2(dx,dz);}p.h.g.position.set(p.x,0,p.z);p.ph+=dt*(d>0.2?8:0);animHuman(p.h,p.ph,d>0.2?1:0,true);}
@@ -3740,7 +3740,8 @@ function setupCull(){const dyn=new Set();for(const c of cars)dyn.add(c.mesh);for
 function updateCull(dt){const t=player.inCar||player,L=CULL.list,n=L.length;
   if(n){const step=Math.ceil(n/6);for(let k=0;k<step;k++){const i=CULL.i++%n,e=L[i];if(!e)continue;if(e.o.position.distanceToSquared(e.p0)>25){if(e.hid){e.o.visible=true;}L.splice(i,1);continue;}const dx=e.x-t.x,dz=e.z-t.z,far=dx*dx+dz*dz>e.lim*e.lim;
     if(far&&!e.hid&&e.o.visible){e.o.visible=false;e.hid=true;}else if(!far&&e.hid){e.o.visible=true;e.hid=false;}}}
-  CULL.ct-=dt;if(CULL.ct<=0){CULL.ct=0.4;for(const c of cars){if(c.mode==='player'){if(c._cul){c.mesh.visible=true;c._cul=false;}continue;}const dx=c.x-t.x,dz=c.z-t.z,far=dx*dx+dz*dz>320*320;if(far&&!c._cul&&c.mesh.visible){c.mesh.visible=false;c._cul=true;}else if(!far&&c._cul){c.mesh.visible=true;c._cul=false;}}}}
+  CULL.ct-=dt;if(CULL.ct<=0){CULL.ct=0.4;for(const c of cars){if(c.mode==='player'){if(c._cul){c.mesh.visible=true;c._cul=false;}continue;}const dx=c.x-t.x,dz=c.z-t.z,far=dx*dx+dz*dz>260*260;if(far&&!c._cul&&c.mesh.visible){c.mesh.visible=false;c._cul=true;}else if(!far&&c._cul){c.mesh.visible=true;c._cul=false;}}
+    for(const p of peds){const dx=p.x-t.x,dz=p.z-t.z,far=dx*dx+dz*dz>240*240;if(far&&!p._cul&&p.h.g.visible){p.h.g.visible=false;p._cul=true;}else if(!far&&p._cul){p.h.g.visible=true;p._cul=false;}}}}
 function start(){
   S.started=true;mpInit();setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
