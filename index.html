@@ -927,7 +927,7 @@ const MARINAS=[];const lm2=c=>new THREE.MeshLambertMaterial({color:c});
      const yawOf=dir=>ax?(dir>0?0:Math.PI):(dir>0?Math.PI/2:-Math.PI/2);
      for(const v of vs){const a=Wd(-hs,v),b=Wd(hs,v);street(a[0],a[1],b[0],b[1]);ROADS2.push([a,b]);HD.walks.push([a[0],a[1],b[0],b[1],5.9]);
        for(const sd of [-1,1])for(let u=-hs+24,n=0;u<=hs-24;u+=24,n++){if(Math.random()<0.06)continue;const d=rand(8.5,10.5),w=rand(9,11.5),fr=6,dist=4.6+2.4+fr+d/2;const [x,z]=Wd(u+rand(-0.8,0.8),v+sd*dist);
-         HOUSE_LIST.push({x,z,yaw:yawOf(-sd),w,d,st:Math.random()<0.45?2:1,gs:Math.random()<0.5?-1:1,front:fr+2.4,lot:24,lamp:n%2===0&&sd>0,car:Math.random()<0.33});}}
+         HOUSE_LIST.push({x,z,yaw:yawOf(-sd),w,d,st:Math.random()<0.45?2:1,gs:Math.random()<0.5?-1:1,front:fr+2.4,lot:24,lamp:n%2===0&&sd>0,car:Math.random()<0.16});}}
      for(const u of [-hs,hs]){const a=Wd(u,vs[0]-34),b=Wd(u,vs[vs.length-1]+34);street(a[0],a[1],b[0],b[1]);ROADS2.push([a,b]);HD.walks.push([a[0],a[1],b[0],b[1],5.9]);}
      // connect to the nearest existing road
      let best=null;for(const pts of ROADS2){if(HD.own&&HD.own.has(pts))continue;for(let i=0;i<pts.length-1;i++){const A=pts[i],B=pts[i+1],dx=B[0]-A[0],dz=B[1]-A[1],L2=dx*dx+dz*dz||1;
@@ -2832,8 +2832,9 @@ function updateCars(dt){
     if(c.sirR){const on=c.chase||(c.mode==='player'&&S.stars>0);const ph=Math.floor(clock*6)%2;c.sirR.emissiveIntensity=on?(ph?2:0.1):0;c.sirB.emissiveIntensity=on?(ph?0.1:2):0;}
   }
   // car vs car
-  for(let a=0;a<cars.length;a++)for(let b=a+1;b<cars.length;b++){
-    const A=cars[a],B=cars[b];if(Math.abs((A.y||0)-(B.y||0))>2.5)continue;const dx=B.x-A.x,dz=B.z-A.z,d2=dx*dx+dz*dz;if(d2>16||d2<1e-6)continue;
+  {const G=new Map();cars.forEach((c,i)=>{c._i=i;c._sp=Math.abs(c.vx)+Math.abs(c.vz);const k=(Math.floor(c.x/6)+5000)*10000+(Math.floor(c.z/6)+5000);let L=G.get(k);if(!L)G.set(k,L=[]);L.push(c);});
+  for(const A of cars){const gx=Math.floor(A.x/6),gz=Math.floor(A.z/6);for(let ix=-1;ix<=1;ix++)for(let iz=-1;iz<=1;iz++){const LL=G.get((gx+ix+5000)*10000+(gz+iz+5000));if(!LL)continue;for(const B of LL){if(B._i<=A._i||(A._sp<0.3&&B._sp<0.3))continue;
+    if(Math.abs((A.y||0)-(B.y||0))>2.5)continue;const dx=B.x-A.x,dz=B.z-A.z,d2=dx*dx+dz*dz;if(d2>16||d2<1e-6)continue;
     const d=Math.sqrt(d2),nx=dx/d,nz=dz/d,push=(4-d)/2;A.x-=nx*push;A.z-=nz*push;B.x+=nx*push;B.z+=nz*push;
     const rv=(B.vx-A.vx)*nx+(B.vz-A.vz)*nz;
     if(rv<0){const j=-(1.3)*rv/2;A.vx-=j*nx;A.vz-=j*nz;B.vx+=j*nx;B.vz+=j*nz;
@@ -2844,12 +2845,12 @@ function updateCars(dt){
         if(pc){S.shake=Math.max(S.shake,Math.min(0.8,imp/25));thud(Math.min(1,imp/20));if(other.mode==='police'&&!other.chase&&imp>6)addCrime(1,'Rammed a cop');}
         else if(Math.hypot(A.x-player.x,A.z-player.z)<60)thud(Math.min(.6,imp/30));
       }}
-  }
+  }}}}
   // car vs humans
   for(const c of cars){
     const sp=Math.hypot(c.vx,c.vz);const fx=Math.sin(c.h),fz=Math.cos(c.h);
     const hitTest=(x,z)=>{const dx=x-c.x,dz=z-c.z,a=dx*fx+dz*fz,s=dx*fz-dz*fx;return Math.abs(a)<2.5&&Math.abs(s)<1.35?{a,s}:null;};
-    for(const p of peds){if(p.state==='down'||p.state==='carried'||Math.abs((c.y||0)-p.y)>2)continue;const h=hitTest(p.x,p.z);if(!h)continue;
+    if(sp>0.4)for(const p of peds){if(Math.abs(p.x-c.x)>3||Math.abs(p.z-c.z)>3||p.state==='down'||p.state==='carried'||Math.abs((c.y||0)-p.y)>2)continue;const h=hitTest(p.x,p.z);if(!h)continue;
       if(sp>4){hurtPed(p,sp*4.2,c.vx*0.9+fz*Math.sign(h.s)*2,c.vz*0.9-fx*Math.sign(h.s)*2,c.mode==='player',true);thud(0.4);if(c.mode!=='player'&&c.s)c.s*=0.3;}
       else{const sg=Math.sign(h.s)||1;p.x+=fz*sg*0.15;p.z-=fx*sg*0.15;}}
     if(!player.inCar&&!player.inAir&&player.knockT<=0&&S.deadT<=0&&Math.abs((c.y||0)-player.y)<2){const h=hitTest(player.x,player.z);if(h){
@@ -3170,7 +3171,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -3568,7 +3569,7 @@ const connectRoad=(x,z)=>{let best=null;for(const pts of ROADS2)for(let i=0;i<pt
  // pit road and garages on the back straight infield
  for(let k=0;k<12;k++){const x=SP.x-SP.A+20+k*20,z=SP.z-SP.R+24;const gm=new THREE.Mesh(new THREE.BoxGeometry(14,5,8),new THREE.MeshLambertMaterial({color:0xdedad2}));gm.position.set(x,2.5,z);gm.castShadow=true;scene.add(gm);addCollider(x-7,z-4,x+7,z+4,5);}
  connectRoad(SP.x,SP.z+SP.R+60);
- for(let k=0;k<26;k++){const x=SP.x+rand(-SP.A,SP.A),z=SP.z+SP.R+46+rand(0,12);spawnCar(x,z,Math.PI/2*(Math.random()<0.5?1:-1),'parked',false);}
+ for(let k=0;k<12;k++){const x=SP.x+rand(-SP.A,SP.A),z=SP.z+SP.R+46+rand(0,12);spawnCar(x,z,Math.PI/2*(Math.random()<0.5?1:-1),'parked',false);}
  // race cars
  const RC=[0xd62828,0x1d3557,0xf9c80e,0x2a9d8f,0xf77f00,0x111111,0xffffff,0x8338ec,0x06d6a0,0xef476f,0x118ab2,0x073b4c];
  for(let i=0;i<12;i++){const s=i*OVAL_P/12,p=ovalPt(s,i%2?-4:4);const c=spawnCar(p.x,p.z,p.yaw,'race',false,'coupe');c.race={s,off:i%2?-4:4,v:rand(44,52),num:randi(2,99),total:0};ARENA.race.push(c);}
@@ -3591,7 +3592,7 @@ function updateRaceCar(c,dt){const R=c.race,hr=S.time*24,live=(hr>=10&&hr<20)||A
  ARENA.score=canvasTex(512,192,()=>{});const sb=new THREE.Mesh(new THREE.PlaneGeometry(24,9),new THREE.MeshBasicMaterial({map:ARENA.score}));sb.position.set(ST.x+hx+16,22,ST.z);sb.rotation.y=-Math.PI/2;scene.add(sb);
  {const p=new THREE.Mesh(new THREE.BoxGeometry(1.5,18,1.5),M.pole);p.position.set(ST.x+hx+17,9,ST.z);scene.add(p);}
  bigSign(ST.x,0.62*16+5,ST.z+hz+16*0.95+0.8,50,4.5,Math.PI,'GATORS STADIUM','#f77f00','#0b2e1f');
- connectRoad(ST.x-hx-20,ST.z);for(let k=0;k<30;k++)spawnCar(ST.x+rand(-hx,hx),ST.z+hz+22+rand(0,14),0,'parked',false);
+ connectRoad(ST.x-hx-20,ST.z);for(let k=0;k<14;k++)spawnCar(ST.x+rand(-hx,hx),ST.z+hz+22+rand(0,14),0,'parked',false);
  const team=(col,pants,helm)=>{const o=Object.assign(randomLook(),{umbrella:false,phone:false,bag:null,hat:null,outfit:'casual',shirt:col,pants,longSleeve:false});return o;};
  const helmG=new THREE.SphereGeometry(0.17,10,8);
  for(let t=0;t<2;t++)for(let k=0;k<11;k++){const h=makeHuman(team(t?0x1d3557:0xf77f00,0xf4f4f4));const top=new THREE.Box3().setFromObject(h.g).max.y;const hm=new THREE.Mesh(helmG,new THREE.MeshLambertMaterial({color:t?0x1d3557:0xf77f00}));hm.position.y=top-0.14;h.g.add(hm);
@@ -3728,8 +3729,20 @@ function updateReactions(dt){if(!S.started)return;const onFoot=!player.inCar&&!p
   // rain
   REACT.rainT-=dt;if(GFX.wet>0.5&&REACT.rainT<=0){REACT.rainT=14;const near=peds.filter(p=>!p.dead&&Math.abs(p.x-player.x)<14&&Math.abs(p.z-player.z)<14);if(near.length)say(pick(near),pick(['Ugh, this rain.','Of course I forgot my umbrella.','So much for the beach.']));}}
 
+
+// ---------- distance culling: hide static scenery and cars beyond the haze ----------
+const CULL={list:[],i:0,ct:0};
+function setupCull(){const dyn=new Set();for(const c of cars)dyn.add(c.mesh);for(const p of peds)dyn.add(p.h.g);for(const a of air)dyn.add(a.mesh);for(const w of WORKERS)dyn.add(w.h.g);for(const f of ARENA.fb)dyn.add(f.h.g);
+  ARENA.courts.forEach(C=>{C.pl.forEach(p=>dyn.add(p.h.g));dyn.add(C.ball);});if(ARENA.ball)dyn.add(ARENA.ball);if(SKY.lander)dyn.add(SKY.lander);if(SKY.banner)dyn.add(SKY.banner);SKY.cruise.forEach(c=>dyn.add(c.g));if(SKY.heli)dyn.add(SKY.heli.g);if(AIRLINER)dyn.add(AIRLINER);if(player.human)dyn.add(player.human.g);
+  const box=new THREE.Box3(),sph=new THREE.Sphere();
+  for(const o of scene.children){if(dyn.has(o)||o.isLight||o.isCamera||o.isSprite||o.isPoints||o.isLine||o.userData.chunked)continue;if(o.isInstancedMesh&&o.frustumCulled===false)continue;box.setFromObject(o);if(box.isEmpty())continue;box.getBoundingSphere(sph);if(sph.radius>500)continue;
+    CULL.list.push({o,x:sph.center.x,z:sph.center.z,lim:400+sph.radius+Math.max(0,box.max.y-15)*5,p0:o.position.clone(),hid:false});}}
+function updateCull(dt){const t=player.inCar||player,L=CULL.list,n=L.length;
+  if(n){const step=Math.ceil(n/6);for(let k=0;k<step;k++){const i=CULL.i++%n,e=L[i];if(!e)continue;if(e.o.position.distanceToSquared(e.p0)>25){if(e.hid){e.o.visible=true;}L.splice(i,1);continue;}const dx=e.x-t.x,dz=e.z-t.z,far=dx*dx+dz*dz>e.lim*e.lim;
+    if(far&&!e.hid&&e.o.visible){e.o.visible=false;e.hid=true;}else if(!far&&e.hid){e.o.visible=true;e.hid=false;}}}
+  CULL.ct-=dt;if(CULL.ct<=0){CULL.ct=0.4;for(const c of cars){if(c.mode==='player'){if(c._cul){c.mesh.visible=true;c._cul=false;}continue;}const dx=c.x-t.x,dz=c.z-t.z,far=dx*dx+dz*dz>320*320;if(far&&!c._cul&&c.mesh.visible){c.mesh.visible=false;c._cul=true;}else if(!far&&c._cul){c.mesh.visible=true;c._cul=false;}}}}
 function start(){
-  S.started=true;mpInit();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  S.started=true;mpInit();setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
   camYaw=player.h+Math.PI;
   toast('Sunny Mart is right next to you · purple $ on the map = shops');
