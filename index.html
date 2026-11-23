@@ -2908,8 +2908,8 @@ function updateCars(dt){
     else if(c.mode==='race')updateRaceCar(c,dt);
     else{if(c.sink){c.y-=dt*0.9;c.mesh.position.y=c.y;if(c.y<-5)removeCar(c);continue;}
       if(c.boat){updateBoat(c,dt,null);}else{const k=Math.exp(-2.2*dt);c.vx*=k;c.vz*=k;c.x+=c.vx*dt;c.z+=c.vz*dt;}if(c.boat){}
-      else{vertical(c,dt);if(c.deck&&c.y>1.5)railPush(c,2.0);else if(Math.hypot(c.vx,c.vz)>0.1)collide(c,2.0);
-      if(c.y<0.5&&inDeepWater(c.x,c.z))c.sink=true;}c.s=c.vx*Math.sin(c.h)+c.vz*Math.cos(c.h);}
+      else{const still=Math.abs(c.vx)+Math.abs(c.vz)<0.03&&!c.vy;if(!(still&&c._settled)){vertical(c,dt);if(c.deck&&c.y>1.5)railPush(c,2.0);else if(Math.hypot(c.vx,c.vz)>0.1)collide(c,2.0);
+      if(c.y<0.5&&inDeepWater(c.x,c.z))c.sink=true;c._settled=still;}}c.s=c.vx*Math.sin(c.h)+c.vz*Math.cos(c.h);}
     if(c.mode!=='wreck'&&c.hp<=0)wreckCar(c);
     if(c.mode!=='wreck'&&c.hp<45){c.smokeT-=dt;if(c.smokeT<=0){c.smokeT=c.hp<20?0.05:0.15;emit(c.x+Math.sin(c.h)*1.8,1.3,c.z+Math.cos(c.h)*1.8,rand(-.3,.3),rand(1.5,2.5),rand(-.3,.3),c.hp<20?0x333333:0x999999,1.4,1,2.5);}}
     if(c.mode==='wreck'){c.wreckT+=dt;if(c.wreckT<6&&Math.random()<0.5)emit(c.x+rand(-1,1),1.2,c.z+rand(-1,1),0,rand(2,4),0,Math.random()<0.5?0xff7a2a:0x222222,1,1.4,2);}
