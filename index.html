@@ -3732,16 +3732,26 @@ function updateReactions(dt){if(!S.started)return;const onFoot=!player.inCar&&!p
 
 // ---------- distance culling: hide static scenery and cars beyond the haze ----------
 const CULL={list:[],i:0,ct:0};
+
+// merge static scenery that shares a material into one mesh per 160 m cell (far fewer draw calls)
+function staticMerge(skip){for(const p of LIFE.props)skip.add(p.m);for(const d of LIFE.deer)skip.add(d.m);for(const g of LIFE.gators)skip.add(g.g);for(const t of LIFE.tractors)skip.add(t.g);if(ARENA.ball)skip.add(ARENA.ball);ARENA.courts.forEach(C=>skip.add(C.ball));
+  const buckets=new Map(),CS=160;
+  for(const o of scene.children){if(skip.has(o)||!o.isMesh||o.isInstancedMesh||o.children.length||!o.visible)continue;const mt=o.material;if(Array.isArray(mt)||!(mt.isMeshLambertMaterial||mt.isMeshPhongMaterial)||mt.transparent||mt.vertexColors)continue;const g=o.geometry;if(!g.attributes.position||!g.attributes.normal||g.attributes.color)continue;
+    o.updateMatrixWorld(true);const k=mt.uuid+'|'+Math.floor(o.position.x/CS)+'|'+Math.floor(o.position.z/CS)+'|'+(o.castShadow?1:0)+(o.receiveShadow?1:0)+'|'+(g.attributes.uv?1:0);let b=buckets.get(k);if(!b)buckets.set(k,b={mt,list:[],cs:o.castShadow,rs:o.receiveShadow,uv:!!g.attributes.uv});b.list.push(o);}
+  for(const b of buckets.values()){if(b.list.length<3)continue;let count=0;const geos=b.list.map(o=>{const gg=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();gg.applyMatrix4(o.matrixWorld);count+=gg.attributes.position.count;return gg;});
+    const pos=new Float32Array(count*3),nor=new Float32Array(count*3),uv=b.uv?new Float32Array(count*2):null;let off=0;for(const gg of geos){pos.set(gg.attributes.position.array,off*3);nor.set(gg.attributes.normal.array,off*3);if(uv)uv.set(gg.attributes.uv.array,off*2);off+=gg.attributes.position.count;gg.dispose();}
+    const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.BufferAttribute(pos,3));G.setAttribute('normal',new THREE.BufferAttribute(nor,3));if(uv)G.setAttribute('uv',new THREE.BufferAttribute(uv,2));G.computeBoundingSphere();
+    const M2=new THREE.Mesh(G,b.mt);M2.castShadow=b.cs;M2.receiveShadow=b.rs;scene.add(M2);for(const o of b.list)scene.remove(o);}}
 function setupCull(){const dyn=new Set();for(const c of cars)dyn.add(c.mesh);for(const p of peds)dyn.add(p.h.g);for(const a of air)dyn.add(a.mesh);for(const w of WORKERS)dyn.add(w.h.g);for(const f of ARENA.fb)dyn.add(f.h.g);
   ARENA.courts.forEach(C=>{C.pl.forEach(p=>dyn.add(p.h.g));dyn.add(C.ball);});if(ARENA.ball)dyn.add(ARENA.ball);if(SKY.lander)dyn.add(SKY.lander);if(SKY.banner)dyn.add(SKY.banner);SKY.cruise.forEach(c=>dyn.add(c.g));if(SKY.heli)dyn.add(SKY.heli.g);if(AIRLINER)dyn.add(AIRLINER);if(player.human)dyn.add(player.human.g);
-  const box=new THREE.Box3(),sph=new THREE.Sphere();
+  staticMerge(new Set(dyn));const box=new THREE.Box3(),sph=new THREE.Sphere();
   for(const o of scene.children){if(dyn.has(o)||o.isLight||o.isCamera||o.isSprite||o.isPoints||o.isLine||o.userData.chunked)continue;if(o.isInstancedMesh&&o.frustumCulled===false)continue;box.setFromObject(o);if(box.isEmpty())continue;box.getBoundingSphere(sph);if(sph.radius>500)continue;
-    CULL.list.push({o,x:sph.center.x,z:sph.center.z,lim:400+sph.radius+Math.max(0,box.max.y-15)*5,p0:o.position.clone(),hid:false});}}
+    CULL.list.push({o,x:sph.center.x,z:sph.center.z,lim:230+sph.radius*1.5+Math.max(0,box.max.y-12)*6,p0:o.position.clone(),hid:false});}}
 function updateCull(dt){const t=player.inCar||player,L=CULL.list,n=L.length;
   if(n){const step=Math.ceil(n/6);for(let k=0;k<step;k++){const i=CULL.i++%n,e=L[i];if(!e)continue;if(e.o.position.distanceToSquared(e.p0)>25){if(e.hid){e.o.visible=true;}L.splice(i,1);continue;}const dx=e.x-t.x,dz=e.z-t.z,far=dx*dx+dz*dz>e.lim*e.lim;
     if(far&&!e.hid&&e.o.visible){e.o.visible=false;e.hid=true;}else if(!far&&e.hid){e.o.visible=true;e.hid=false;}}}
-  CULL.ct-=dt;if(CULL.ct<=0){CULL.ct=0.4;for(const c of cars){if(c.mode==='player'){if(c._cul){c.mesh.visible=true;c._cul=false;}continue;}const dx=c.x-t.x,dz=c.z-t.z,far=dx*dx+dz*dz>260*260;if(far&&!c._cul&&c.mesh.visible){c.mesh.visible=false;c._cul=true;}else if(!far&&c._cul){c.mesh.visible=true;c._cul=false;}}
-    for(const p of peds){const dx=p.x-t.x,dz=p.z-t.z,far=dx*dx+dz*dz>240*240;if(far&&!p._cul&&p.h.g.visible){p.h.g.visible=false;p._cul=true;}else if(!far&&p._cul){p.h.g.visible=true;p._cul=false;}}}}
+  CULL.ct-=dt;if(CULL.ct<=0){CULL.ct=0.4;for(const c of cars){if(c.mode==='player'){if(c._cul){c.mesh.visible=true;c._cul=false;}continue;}const dx=c.x-t.x,dz=c.z-t.z,d2=dx*dx+dz*dz,far=d2>240*240;{const lod=d2>70*70;if(lod!==!!c._lod){c._lod=lod;if(!c._body){let best=null,br=-1;for(const ch of c.mesh.children){if(!ch.isMesh)continue;if(!ch.geometry.boundingSphere)ch.geometry.computeBoundingSphere();const rr=ch.geometry.boundingSphere.radius*Math.max(ch.scale.x,ch.scale.y,ch.scale.z);if(rr>br){br=rr;best=ch;}}c._body=best;}for(const ch of c.mesh.children)if(ch!==c._body&&ch.isMesh)ch.visible=!lod;}}if(far&&!c._cul&&c.mesh.visible){c.mesh.visible=false;c._cul=true;}else if(!far&&c._cul){c.mesh.visible=true;c._cul=false;}}
+    for(const p of peds){const dx=p.x-t.x,dz=p.z-t.z,far=dx*dx+dz*dz>140*140;if(far&&!p._cul&&p.h.g.visible){p.h.g.visible=false;p._cul=true;}else if(!far&&p._cul){p.h.g.visible=true;p._cul=false;}}}}
 function start(){
   S.started=true;mpInit();setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
