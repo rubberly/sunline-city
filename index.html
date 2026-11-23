@@ -1147,7 +1147,7 @@ const MARINAS=[];const lm2=c=>new THREE.MeshLambertMaterial({color:c});
        im.userData.chunked=true;im.castShadow=!/drive|lot|cap/.test(k);im.receiveShadow=true;scene.add(im);SPRAWL.chunks.push({m:im,x:cx,z:cz});}}}
 
   const pines=[];
-  for(let n=0;n<9000&&pines.length<1600;n++){const x=rand(LAND.cx-LAND.hx+60,-300),z=rand(-LAND.hz+60,LAND.hz-60),sd=landSDF(x,z);if(nearTown(x,z)||inFarm(x,z)||inSwamp(x,z,15)||inSprawl(x,z)||(Math.abs(x-SPEEDWAY.x)<SPEEDWAY.A+SPEEDWAY.R+60&&Math.abs(z-SPEEDWAY.z)<SPEEDWAY.R+70)||(Math.abs(x-STADIUM.x)<185&&Math.abs(z-STADIUM.z)<125))continue;
+  for(let n=0;n<9000&&pines.length<1600;n++){const x=rand(LAND.cx-LAND.hx+60,-300),z=rand(-LAND.hz+60,LAND.hz-60),sd=landSDF(x,z);if(nearTown(x,z)||inFarm(x,z)||inSwamp(x,z,15)||inSprawl(x,z)||inSprawl(x+10,z)||inSprawl(x-10,z)||inSprawl(x,z+10)||inSprawl(x,z-10)||(Math.abs(x-SPEEDWAY.x)<SPEEDWAY.A+SPEEDWAY.R+60&&Math.abs(z-SPEEDWAY.z)<SPEEDWAY.R+70)||(Math.abs(x-STADIUM.x)<185&&Math.abs(z-STADIUM.z)<125))continue;
     if(sd>-30||(sd>-105&&sd<-35))continue;if(x>-480&&Math.abs(z)<480)continue;if(Math.abs(z-152)<34||Math.abs(z+152)<30||Math.abs(x+152)<34)continue;
     if(x>-470&&z<-300)continue;if(MTN.some(([mx,mz,r])=>Math.hypot(x-mx,z-mz)<r+6))continue;pines.push([x,z,rand(0.8,1.4)]);}
   const tg=new THREE.CylinderGeometry(0.22,0.34,3,6);tg.translate(0,1.5,0);const c1=new THREE.ConeGeometry(2.3,5,8);c1.translate(0,5,0);const c2=new THREE.ConeGeometry(1.6,4,8);c2.translate(0,7.6,0);
@@ -1166,7 +1166,7 @@ const MARINAS=[];const lm2=c=>new THREE.MeshLambertMaterial({color:c});
   const blob=(parts)=>mergeParts(parts.map(p=>({geo:p[0],m:new THREE.Matrix4().compose(new THREE.Vector3(p[1],p[2],p[3]),new THREE.Quaternion().setFromEuler(new THREE.Euler(p[7]||0,p[8]||0,0)),new THREE.Vector3(p[4],p[5],p[6])),c:new THREE.Color(p[9])})));
   const ico=new THREE.IcosahedronGeometry(1,1);
   const MX=(x,y,z,s,ry,sy)=>new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),ry||0),new THREE.Vector3(s,(sy||1)*s,s));
-  const okLand=(x,z)=>{if(inSprawl(x,z))return false;if(Math.abs(x-SPEEDWAY.x)<SPEEDWAY.A+SPEEDWAY.R+60&&Math.abs(z-SPEEDWAY.z)<SPEEDWAY.R+70)return false;if(Math.abs(x-STADIUM.x)<185&&Math.abs(z-STADIUM.z)<125)return false;const sd=landSDF(x,z);if(sd>-30||(sd>-105&&sd<-35))return false;if(x>-480&&Math.abs(z)<480)return false;if(nearTown(x,z)||inFarm(x,z))return false;
+  const nearSprawl=(x,z,b)=>inSprawl(x,z)||inSprawl(x+b,z)||inSprawl(x-b,z)||inSprawl(x,z+b)||inSprawl(x,z-b);const okLand=(x,z)=>{if(nearSprawl(x,z,12))return false;if(Math.abs(x-SPEEDWAY.x)<SPEEDWAY.A+SPEEDWAY.R+60&&Math.abs(z-SPEEDWAY.z)<SPEEDWAY.R+70)return false;if(Math.abs(x-STADIUM.x)<185&&Math.abs(z-STADIUM.z)<125)return false;const sd=landSDF(x,z);if(sd>-30||(sd>-105&&sd<-35))return false;if(x>-480&&Math.abs(z)<480)return false;if(nearTown(x,z)||inFarm(x,z))return false;
     if(Math.abs(z-152)<30||Math.abs(z+152)<28||Math.abs(x+152)<30)return false;if(x>-470&&z<-300)return false;if(MTN.some(([mx,mz,r])=>Math.hypot(x-mx,z-mz)<r+8))return false;return roofAt(x,z)===0;};
   const inForest=(x,z)=>FORESTS.some(f=>Math.hypot(x-f.x,z-f.z)<f.r);
   // broadleaf trees, bushes and rocks
