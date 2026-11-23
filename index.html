@@ -2076,7 +2076,7 @@ function buildFloors(hall,sp,T,o){const plan=FLOOR_PLANS[sp.kind];if(!plan||!T.u
   hall.floors.forEach((f,i)=>{const k=i+1;if(k<hall.floors.length){const p=at(k,0);PUB_ACTS.push({x:p[0],z:p[1],y:f.y,label:'Elevator ↑ '+(k+2)+'F · '+hall.floors[k].name,act:go(k+1)});}
     const p=at(k,2.4);PUB_ACTS.push({x:p[0],z:p[1],y:f.y,label:'Elevator ↓ '+(k===1?'Lobby':k+'F · '+hall.floors[k-2].name),act:go(k-1)});});}
 function updateFloors(dt){const F=S.floor;
-  for(const h of HALLS){if(!h.floors)continue;const mine=F&&F.hall===h;for(const f of h.floors){const on=mine&&F.f===f;f.grp.visible=on;if(!on)continue;
+  for(const h of HALLS){if(!h.floors)continue;const mine=!!(F&&F.hall===h);for(const f of h.floors){const on=!!(mine&&F.f===f);f.grp.visible=on;if(!on)continue;
       for(const p of f.people){p.t+=dt;const H=p.h;
         if(p.pose==='lie'){animHuman(H,0,0,false);H.g.rotation.x=-Math.PI/2;H.g.position.y=0.62;}
         else if(p.pose==='sit'){animHuman(H,0,0,false);if(typeof seatPose==='function')seatPose(H,1);H.g.position.y=-0.25;}
@@ -3705,7 +3705,7 @@ const HOMEH={};
  A(2.5,-HD+1.4,upY,'Change clothes',()=>{newOutfit();toast('Fresh fit');});
  A(-HW+1.5,1.1,upY,'Use the computer',()=>toast(pick(['You check your bank balance: $'+S.money.toLocaleString(),'Inbox: 3 new emails from "SAL\'S LAW OFFICE"','You watch speedway highlights for 20 minutes.'])));}
 function updateHome(dt){if(!HOMEH.rect)return;const r=HOMEH.rect,inside=!player.inCar&&player.x>r.x0-0.6&&player.x<r.x1+0.6&&player.z>r.z0-0.6&&player.z<r.z1+0.6&&player.y<7;
-  const upstairs=S.floor&&S.floor.hall===HOMEH;HOMEH.roof.visible=!inside;HOMEH.up.visible=!inside||upstairs;
+  const upstairs=!!(S.floor&&S.floor.hall===HOMEH);HOMEH.roof.visible=!inside;HOMEH.up.visible=!inside||upstairs;
   if(inside)S.insideShop={name:upstairs?'Your House · Bedroom':'Your House',cx:HOME.x,cz:HOME.z};if(HOMEH.tv)HOMEH.tv.material.emissiveIntensity=0.35+Math.abs(Math.sin(clock*7.3)*Math.sin(clock*2.1))*0.5;}
 
 // ---------- people react like people: they look at you, notice staring, greet, call 911, scream at bodies, complain about rain ----------
@@ -3751,7 +3751,7 @@ function updateCull(dt){const t=player.inCar||player,L=CULL.list,n=L.length;
   if(n){const step=Math.ceil(n/6);for(let k=0;k<step;k++){const i=CULL.i++%n,e=L[i];if(!e)continue;if(e.o.position.distanceToSquared(e.p0)>25){if(e.hid){e.o.visible=true;}L.splice(i,1);continue;}const dx=e.x-t.x,dz=e.z-t.z,far=dx*dx+dz*dz>e.lim*e.lim;
     if(far&&!e.hid&&e.o.visible){e.o.visible=false;e.hid=true;}else if(!far&&e.hid){e.o.visible=true;e.hid=false;}}}
   CULL.ct-=dt;if(CULL.ct<=0){CULL.ct=0.4;for(const c of cars){if(c.mode==='player'){if(c._cul){c.mesh.visible=true;c._cul=false;}continue;}const dx=c.x-t.x,dz=c.z-t.z,d2=dx*dx+dz*dz,far=d2>240*240;{const lod=d2>70*70;if(lod!==!!c._lod){c._lod=lod;if(!c._body){let best=null,br=-1;for(const ch of c.mesh.children){if(!ch.isMesh)continue;if(!ch.geometry.boundingSphere)ch.geometry.computeBoundingSphere();const rr=ch.geometry.boundingSphere.radius*Math.max(ch.scale.x,ch.scale.y,ch.scale.z);if(rr>br){br=rr;best=ch;}}c._body=best;}for(const ch of c.mesh.children)if(ch!==c._body&&ch.isMesh)ch.visible=!lod;}}if(far&&!c._cul&&c.mesh.visible){c.mesh.visible=false;c._cul=true;}else if(!far&&c._cul){c.mesh.visible=true;c._cul=false;}}
-    for(const p of peds){const dx=p.x-t.x,dz=p.z-t.z,far=dx*dx+dz*dz>140*140;if(far&&!p._cul&&p.h.g.visible){p.h.g.visible=false;p._cul=true;}else if(!far&&p._cul){p.h.g.visible=true;p._cul=false;}}}}
+    for(const p of peds){const dx=p.x-t.x,dz=p.z-t.z,d2=dx*dx+dz*dz,far=d2>120*120;{const lod=d2>45*45;if(lod!==!!p._lod){p._lod=lod;const H=p.h;for(const k of ["elL","elR"])if(H[k])H[k].traverse(o=>{if(o.isMesh)o.visible=!lod;});for(const ch of H.g.children)if(ch.isMesh&&ch.geometry.type==="PlaneGeometry")ch.visible=!lod;}}if(far&&!p._cul&&p.h.g.visible){p.h.g.visible=false;p._cul=true;}else if(!far&&p._cul){p.h.g.visible=true;p._cul=false;}}}}
 function start(){
   S.started=true;mpInit();setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
