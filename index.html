@@ -1298,7 +1298,7 @@ function updateParts(dt){for(const p of parts){if(p.life<=0)continue;p.life-=dt;
 // Realistic people: anatomy from many shaped parts, merged per body segment into vertex-coloured meshes so each person stays cheap to draw.
 const geoT=(g,fn)=>{fn(g);return g;};
 const matCache={}; const lm=c=>matCache[c]||(matCache[c]=new THREE.MeshLambertMaterial({color:c}));
-const HUMAN_MAT=envMat(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.8,metalness:0}),0.35);HUMAN_MAT.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vHW;').replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvHW=(modelMatrix*vec4(transformed,1.0)).xyz;');sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vHW;\nfloat hh(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}').replace('#include <color_fragment>','#include <color_fragment>\n{vec3 q=vHW*90.0;float n=hh(floor(q));float w=0.5+0.5*sin(vHW.x*420.0)*sin(vHW.y*420.0);float skinish=step(0.25,diffuseColor.r-diffuseColor.b)*step(diffuseColor.b,diffuseColor.g);diffuseColor.rgb*=mix(0.93+0.07*n+0.04*w,0.97+0.03*n,skinish);}');};
+const HUMAN_MAT=envMat(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.8,metalness:0}),0.35);HUMAN_MAT.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vHW;').replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvHW=(modelMatrix*vec4(transformed,1.0)).xyz;');sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vHW;\nfloat hh(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}').replace('#include <color_fragment>','#include <color_fragment>\n{vec3 q=vHW*90.0;float n=hh(floor(q));float w=0.5+0.5*sin(vHW.x*420.0)*sin(vHW.y*420.0);float skinish=step(0.25,diffuseColor.r-diffuseColor.b)*step(diffuseColor.b,diffuseColor.g);diffuseColor.rgb*=mix(0.93+0.07*n+0.04*w,0.97+0.03*n,skinish);diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(1.06,0.98,0.93),skinish);}');};
 const HUMAN_MAT2=envMat(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.8,metalness:0,side:THREE.DoubleSide}),0.35);
 const _e=new THREE.Euler(),_q=new THREE.Quaternion(),_v=new THREE.Vector3(),_s=new THREE.Vector3();
 function part(geo,color,x,y,z,rx,ry,rz,sx,sy,sz){_e.set(rx||0,ry||0,rz||0);_q.setFromEuler(_e);_v.set(x||0,y||0,z||0);
@@ -1434,6 +1434,7 @@ function makeHuman(o){
   const pel=[part(lathe(F?'hipF':'hipM',F?[[0.135,0],[0.17,0.06],[0.175,0.12],[0.15,0.2]]:[[0.145,0],[0.16,0.07],[0.158,0.14],[0.15,0.2]]),dress?o.dress:legC,0,0.9,0),
     part(taper(0.153,0.153,0.035,14),swim?legC:(suit||cop)?0x111111:0x2a1f17,0,1.08,0,0,0,0,1,1,0.66)];
   if(o.bag==='purse')pel.push(part(HB.box,0x5a3a22,0.21,1.0,0.02,0,0,0,0.06,0.16,0.2));
+  if(!dress&&!swim){const pc=new THREE.Color(legC).multiplyScalar(0.82).getHex();for(const sx of [-0.075,0.075])pel.push(part(HB.box,pc,sx,0.98,-0.148,0,0,0,0.075,0.08,0.008),part(HB.box,pc,sx*1.25,1.03,0.135,0,0,sx>0?-0.5:0.5,0.05,0.012,0.008));}
   segMesh(g,pel,true);
   if(dress)segMesh(g,[part(taper(0.17,0.27,0.44,14,true),o.dress,0,0.8,0,0,0,0,1,1,0.8)],true,HUMAN_MAT2);
   // legs
@@ -1458,6 +1459,7 @@ function makeHuman(o){
   if(suit)cp.push(part(HB.lo,0x111111,0.05,0.2,0.125,0,0,0,0.008),part(HB.lo,0x111111,0.05,0.12,0.123,0,0,0,0.008),part(HB.box,outer,-0.055,0.42,0.124,0,0,0.5,0.03,0.17,0.012),part(HB.box,outer,0.055,0.42,0.124,0,0,-0.5,0.03,0.17,0.012));
   if(!jacketOn&&!swim&&!cop&&!dress&&Math.random()<0.4)cp.push(part(HB.box,pick([0xffffff,0xe63946,0x1d3557,0xffb703,0x111111,0x2a9d8f]),0,0.33,0.121,0,0,0,0.12,0.1,0.01));
   if(!swim&&!dress)cp.push(part(HB.box,0xbfc3c7,0,0.0,0.106,0,0,0,0.045,0.032,0.012));
+  if(!jacketOn&&!swim&&!dress)cp.push(part(taper(0.152,0.152,0.03,14,true),new THREE.Color(top).multiplyScalar(0.85).getHex(),0,0.035,0,0,0,0,1.02,1,0.8));
   if(F&&!swim&&Math.random()<0.3)cp.push(part(HB.ring,0xd4af37,0,0.53,0.035,Math.PI/2.4,0,0,0.07,0.07,0.035));
   if(cop)cp.push(part(HB.box,0xd4af37,-0.08,0.42,0.128,0,0,0,0.035,0.045,0.01),part(HB.box,0x111111,0,0.03,0,0,0,0,0.33,0.07,0.24),part(HB.box,0x222222,0.17,0.06,0.05,0,0,0,0.05,0.12,0.07),part(HB.box,0x0b1324,-0.18,0.44,0,0,0,0,0.03,0.05,0.09));
   if(o.camera)cp.push(part(HB.box,0x111111,0.04,0.33,0.135,0,0,0,0.11,0.075,0.05),part(HB.box,0x111111,0,0.45,0,0,0,0.6,0.012,0.4,0.27));
@@ -1469,12 +1471,12 @@ function makeHuman(o){
   const head=new THREE.Group();head.position.y=0.73;chest.add(head);
   const hp=[part(HB.sph,sk,0,0,0,0,0,0,0.094,0.117,0.106),part(HB.sph,sk,0,-0.05,0.014,0,0,0,0.078,0.068,0.084),
     part(HB.lo,sk,-0.094,0,0,0,0,0,0.014,0.028,0.02),part(HB.lo,sk,0.094,0,0,0,0,0,0.014,0.028,0.02)];
-  for(const ex of [-0.036,0.036])hp.push(part(HB.lo,0xf4f1ea,ex,0.012,0.086,0,0,0,0.018,0.012,0.01),part(HB.lo,o.eyes,ex,0.012,0.094,0,0,0,0.009,0.009,0.006),
+  for(const ex of [-0.036,0.036])hp.push(part(HB.box,0xffffff,ex+0.0035,0.0155,0.0995,0,0,0,0.0035,0.0035,0.002),part(HB.lo,0xf4f1ea,ex,0.012,0.086,0,0,0,0.018,0.012,0.01),part(HB.lo,o.eyes,ex,0.012,0.094,0,0,0,0.009,0.009,0.006),
     part(HB.box,hc,ex,0.04,0.094,0,0,ex>0?-0.12:0.12,0.036,0.008,0.012));
   hp.push(part(HB.cone,new THREE.Color(sk).multiplyScalar(0.95).getHex(),0,-0.012,0.106,Math.PI/2.3,0,0,0.018,0.045,0.02));{const lid=new THREE.Color(sk).multiplyScalar(0.92).getHex(),blush=new THREE.Color(sk).lerp(new THREE.Color(0xd2706a),0.22).getHex();for(const ex of [-0.036,0.036]){hp.push(part(HB.cap,lid,ex,0.016,0.088,-0.2,0,0,0.02,0.012,0.012));if(F)hp.push(part(HB.box,0x1a1210,ex+(ex>0?0.004:-0.004),0.022,0.097,0,0,ex>0?-0.15:0.15,0.03,0.004,0.006));hp.push(part(HB.lo,blush,ex*1.55,-0.025,0.078,0,0,0,0.026,0.02,0.018));}if(!F&&!o.beard&&Math.random()<0.45)hp.push(part(HB.lo,new THREE.Color(sk).lerp(new THREE.Color(hc),0.22).getHex(),0,-0.062,0.02,0,0,0,0.079,0.06,0.083));}
   hp.push(part(HB.lo,lip,0,-0.052,0.094,0,0,0,0.026,0.007,0.012),part(HB.lo,lip,0,-0.062,0.092,0,0,0,0.023,0.008,0.012));
   {const skd=new THREE.Color(sk).multiplyScalar(0.85).getHex();for(const ex of [-0.036,0.036])hp.push(part(HB.box,skd,ex,0.026,0.093,0,0,0,0.032,0.006,0.012));
-   hp.push(part(HB.box,sk,0,0.012,0.101,0,0,0,0.013,0.038,0.014),part(HB.lo,sk,0,-0.088,0.068,0,0,0,0.034,0.024,0.03));
+   hp.push(part(HB.box,sk,0,0.012,0.101,0,0,0,0.013,0.038,0.014),part(HB.lo,sk,0,-0.088,0.068,0,0,0,0.034,0.024,0.03),part(HB.lo,new THREE.Color(sk).multiplyScalar(0.78).getHex(),0,-0.105,0.035,0,0,0,0.055,0.018,0.05));
    if(F&&Math.random()<0.45)for(const ex of [-0.096,0.096])hp.push(part(HB.lo,0xd4af37,ex,-0.03,0.01,0,0,0,0.008));}
   const hs=o.hairStyle;
   if(hs!=='bald'){const th=hs==='buzz'?0.098:0.103;hp.push(part(HB.cap,hc,0,0.012,-0.004,-0.45,0,0,th,th*1.2,th*1.1));}
@@ -1512,7 +1514,7 @@ function makeHuman(o){
   if(o.umbrella){umb=new THREE.Group();umb.position.set(0.2,0.5,0.22);chest.add(umb);
     segMesh(umb,[part(taper(0.01,0.01,0.95,6),0x222222,0,0.45,0),part(HB.umbrella,o.umbColor,0,0.95,0),part(HB.lo,0x222222,0,1.12,0,0,0,0,0.02)],true,HUMAN_MAT2);umb.visible=false;}
   {const bl=new THREE.Mesh(BLOB_GEO,BLOB_MAT);bl.scale.set(0.95,1,0.75);bl.position.y=0.04;bl.renderOrder=1;g.add(bl);g.userData.blob=bl;}
-  {const bw=o.build||(Math.random()<0.2?rand(1.12,1.28):Math.random()<0.25?rand(0.88,0.95):rand(0.96,1.06));chest.scale.set(bw,1,bw*(0.95+0.1*(bw-1)+0.05));head.scale.set(1/bw,1,1/(bw*(0.95+0.1*(bw-1)+0.05)));for(const hp2 of [L.hip,R.hip])hp2.scale.set(bw,1,bw);for(const c of g.children)if(c.isMesh&&c!==g.userData.blob&&c.geometry.attributes.color)c.scale.set(bw,1,bw);}
+  {const bw=o.build||(Math.random()<0.2?rand(1.12,1.28):Math.random()<0.25?rand(0.88,0.95):rand(0.96,1.06));chest.scale.set(bw,1,bw*(0.95+0.1*(bw-1)+0.05));head.scale.set(0.9/bw,0.9,0.9/(bw*(0.95+0.1*(bw-1)+0.05)));head.position.y=0.7;for(const hp2 of [L.hip,R.hip])hp2.scale.set(bw,1,bw);for(const c of g.children)if(c.isMesh&&c!==g.userData.blob&&c.geometry.attributes.color)c.scale.set(bw,1,bw);}
   const s=(o.scale||1)*0.95;g.scale.set(s,s,s);scene.add(g);
   return{g,chest,head,hipL:L.hip,hipR:R.hip,kneeL:L.knee,kneeR:R.knee,shL:AL.sh,shR:AR.sh,elL:AL.el,elR:AR.el,breath:Math.random()*6,umb,phone:!!o.phone,elder:!!o.elder,look:o};
 }
