@@ -33,12 +33,13 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.startsWith('/models/')) {
-    const name = path.basename(url);
-    const file = path.join(MODELS, name);
-    if (!/^[\w.\-]+\.(glb|json|jpg)$/.test(name) || !fs.existsSync(file)) { res.writeHead(404); res.end('Not found'); return; }
+    const rel = decodeURIComponent(url.slice('/models/'.length));
+    const name = rel;
+    const file = path.join(MODELS, rel);
+    if (!/^[\w\-]+(\/[\w\-]+)*\/?[\w.\-]+\.(glb|json|jpg|png)$/.test(rel) || rel.includes('..') || !path.resolve(file).startsWith(path.resolve(MODELS)) || !fs.existsSync(file)) { res.writeHead(404); res.end('Not found'); return; }
     let entry = modelCache.get(name);
     if (!entry) { const raw = fs.readFileSync(file); entry = { raw, gz: zlib.gzipSync(raw, { level: 9 }) }; modelCache.set(name, entry); }
-    const type = name.endsWith('.glb') ? 'model/gltf-binary' : name.endsWith('.jpg') ? 'image/jpeg' : 'application/json';
+    const type = name.endsWith('.glb') ? 'model/gltf-binary' : name.endsWith('.jpg') ? 'image/jpeg' : name.endsWith('.png') ? 'image/png' : 'application/json';
     const gzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
     res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'public, max-age=604800', ...(gzip ? { 'Content-Encoding': 'gzip' } : {}) });
     res.end(gzip ? entry.gz : entry.raw);
