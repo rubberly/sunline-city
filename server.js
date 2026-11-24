@@ -5,6 +5,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
+const zlib = require('zlib');
+const MODELS = path.join(__dirname, 'models');
+const modelCache = new Map();
 
 const PORT = process.env.PORT || 3000;
 const MAX_PLAYERS = 32;
@@ -27,6 +30,18 @@ const server = http.createServer((req, res) => {
   if (url === '/' || url === '/index.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
     res.end(gamePage());
+    return;
+  }
+  if (url.startsWith('/models/')) {
+    const name = path.basename(url);
+    const file = path.join(MODELS, name);
+    if (!/^[\w.\-]+\.(glb|json|jpg)$/.test(name) || !fs.existsSync(file)) { res.writeHead(404); res.end('Not found'); return; }
+    let entry = modelCache.get(name);
+    if (!entry) { const raw = fs.readFileSync(file); entry = { raw, gz: zlib.gzipSync(raw, { level: 9 }) }; modelCache.set(name, entry); }
+    const type = name.endsWith('.glb') ? 'model/gltf-binary' : name.endsWith('.jpg') ? 'image/jpeg' : 'application/json';
+    const gzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'public, max-age=604800', ...(gzip ? { 'Content-Encoding': 'gzip' } : {}) });
+    res.end(gzip ? entry.gz : entry.raw);
     return;
   }
   res.writeHead(404, { 'Content-Type': 'text/plain' });

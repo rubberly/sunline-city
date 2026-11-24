@@ -174,6 +174,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/math/SimplexNoise.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/SSAOShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/SSAOPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
 (function(){if(/[?&]debug=1/.test(location.search))window.__sun=function(c){return eval(c);};
 'use strict';
@@ -541,7 +543,7 @@ const M={
   pole:new THREE.MeshLambertMaterial({color:0x40434a}),
   lamp:new THREE.MeshLambertMaterial({color:0xffe2b0,emissive:0xffa64d,emissiveIntensity:0}),
   pool:new THREE.MeshBasicMaterial({color:0xff9f40,map:glowTex,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}),
-  glass:envMat(new THREE.MeshStandardMaterial({color:0x101820,metalness:0.9,roughness:0.06}),1.3),
+  glass:envMat(new THREE.MeshStandardMaterial({color:0x1c2a36,metalness:0.55,roughness:0.05,transparent:true,opacity:0.34,depthWrite:false}),1.3),
   wheel:new THREE.MeshLambertMaterial({color:0x1a1a1a}),
   head:new THREE.MeshLambertMaterial({color:0xfff6d8,emissive:0xfff0c0,emissiveIntensity:0.3}),
   tail:new THREE.MeshLambertMaterial({color:0x991111,emissive:0xff2020,emissiveIntensity:0.4}),
@@ -2283,6 +2285,9 @@ function carGeo(kind){
     if(T.doors===4)tr.push(part(HB.box,CHR,sd*(W/2+0.012),fb[1]-0.12,(rb[0]+zB)/2,0,0,0,0.02,0.04,0.16));
     if(T.rails)tr.push(part(HB.box,0x1a1a1a,sd*(Wg/2-0.05),roofY+0.05,(rt[0]+ft[0])/2,0,0,0,0.05,0.05,(ft[0]-rt[0])*0.9));}
   if(T.bed)tr.push(part(HB.box,0x1c1d1f,0,1.165,(T.bed[0]+T.bed[1])/2,0,0,0,W-0.16,0.03,T.bed[1]-T.bed[0]));
+  {const SEAT=0x34363b,DASH=0x1e1f22,sx=Wg/2-0.36,fz=fb[0]-0.85,sy=y0+0.35;for(const x of [-sx,sx]){tr.push(part(HB.box,SEAT,x,sy,fz,0,0,0,0.46,0.14,0.5),part(HB.box,SEAT,x,sy+0.36,fz-0.24,-0.18,0,0,0.46,0.62,0.12),part(HB.box,SEAT,x,sy+0.74,fz-0.28,0,0,0,0.24,0.16,0.1));}
+   if(T.doors===4&&!T.bed)tr.push(part(HB.box,SEAT,0,sy,rb[0]+0.62,0,0,0,Wg-0.3,0.14,0.5),part(HB.box,SEAT,0,sy+0.34,rb[0]+0.38,-0.15,0,0,Wg-0.3,0.58,0.12));
+   tr.push(part(HB.box,DASH,0,fb[1]-0.12,fb[0]-0.18,0,0,0,Wg-0.12,0.22,0.36),part(HB.box,DASH,0,sy+0.12,fz,0,0,0,0.2,0.3,0.6),part(HB.ring,0x111111,sx,fb[1]-0.05,fb[0]-0.42,-1.15,0,0,0.17,0.17,0.17),part(HB.box,0x111111,sx,fb[1]-0.12,fb[0]-0.3,-1.0,0,0,0.04,0.04,0.2));}
   {const GAP=0x0d0e0f,CH=0xd9dde0,hx=W/2+0.004;
    for(let k=0;k<4;k++)tr.push(part(HB.box,CH,0,T.hy-0.2+k*0.04,L+0.035,0,0,0,W*0.4,0.012,0.02));
    for(const sd of [-1,1]){
@@ -3284,9 +3289,9 @@ function frame(now){
   updateSky(dt);
   if(S.started){
     const inp=axes();
-    if(S.entry)updateEntry(dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
+    if(S.entry)updateEntry(S.stars>0?dt*2.2:dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -4035,7 +4040,8 @@ function updateTraffic(dt){const t=player.inCar||player;GX.hk=(GX.hk||0)-dt;cons
     const fx=Math.sin(c.h),fz=Math.cos(c.h),ahead=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx),sp=Math.abs(c.vx)+Math.abs(c.vz);
     if(ahead>0&&ahead<9&&side<2.5&&sp<1.5){c.blockT=(c.blockT||0)+dt;if(c.blockT>1.4&&GX.hk<=0){GX.hk=2.5;honk(1);c.blockT=0;if(!player.inCar){const p=peds.find(q=>Math.hypot(q.x-c.x,q.z-c.z)<0.1);}toast(pick(['*HONK*','*BEEP BEEP*','"Move it!"']));}}else c.blockT=0;
     for(const s of sirens){if(s===c)continue;const ex=s.x-c.x,ez=s.z-c.z;if(ex*ex+ez*ez<45*45&&(ex*fx+ez*fz)<0){c.s=Math.max(0,(c.s||0)-dt*10);c.vx*=0.9;c.vz*=0.9;}}}
-  for(const c of cars){if(c.driver&&!/traffic|hwy|rural|police|race/.test(c.mode))c.driver.visible=false;}}
+  if(player.inCar&&!player.inCar.driver&&!player.inCar.moto&&!player.inCar.boat)GX.addDriver(player.inCar);
+  for(const c of cars){if(c.driver&&!/traffic|hwy|rural|police|race|player/.test(c.mode))c.driver.visible=false;else if(c.driver&&c.mode==='player')c.driver.visible=true;}}
 // ---------- headlights at night, idle body language, weather drama ----------
 function updateLooks(dt){const t=player.inCar||player;
   // headlight beams on the nearest moving cars
@@ -4086,8 +4092,45 @@ addEventListener('keydown',e=>{if(e.repeat||!S.started||S.paused)return;
   if(e.code==='KeyQ'){initAudio();gxAudio();const R=GX.radio;R.st=(R.st+1)%R.names.length;R.step=0;if(window.speechSynthesis)speechSynthesis.cancel();toast('📻 '+R.names[R.st]);}});
 function updateGTA(dt){if(GX.lastT!=null&&S.time<GX.lastT)GX.fogDay=Math.random()<0.45?rand(0.5,1):0;GX.lastT=S.time;updateSound(dt);updateTraffic(dt);updateLooks(dt);updateHeli(dt);updatePhone(dt);}
 
+// ---------- realistic Mixamo people: Josh is you; the people nearest you become real 3D humans with motion-captured animation ----------
+const AV={ready:false,models:{},clips:{},pool:[],josh:null,cap:12,t:0,shown:false};
+function avLoad(){if(!THREE.GLTFLoader||!THREE.SkeletonUtils)return;const L=new THREE.GLTFLoader(),base='models/',names=['josh','sophie','remy','kate','leonard'],anims=['walk','idle','run','injured','swim','tread','enter','exit'];
+  let pending=names.length+anims.length;const done=()=>{if(--pending===0)avReady();};
+  for(const n of names)L.load(base+n+'.glb',g=>{const root=g.scene;root.traverse(o=>{if(o.name)o.name=o.name.replace(/^mixamorigd*/,'');if(o.isMesh){o.castShadow=true;o.receiveShadow=false;o.frustumCulled=false;const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>{if(m&&m.isMeshStandardMaterial){m.envMap=ENV;m.envMapIntensity=0.3;m.roughness=0.7;if(m.map){m.map.encoding=THREE.LinearEncoding;m.map.needsUpdate=true;}if(m.userData&&m.userData.tex&&!m.map){AV.texL=AV.texL||new THREE.TextureLoader();AV.texL.load(base+m.userData.tex,t=>{t.encoding=THREE.LinearEncoding;m.map=t;m.needsUpdate=true;});}}});}});
+    const box=new THREE.Box3().setFromObject(root);AV.models[n]={root,h:Math.max(0.01,box.max.y-box.min.y)};done();},undefined,()=>done());
+  const FL=new THREE.FileLoader();FL.setResponseType('json');for(const a of anims)FL.load(base+a+'.json',j=>{try{AV.clips[a]=THREE.AnimationClip.parse(j);}catch(e){}done();},undefined,()=>done());}
+function avMake(name,height){const M=AV.models[name];if(!M)return null;const obj=THREE.SkeletonUtils.clone(M.root);const s=height/M.h;obj.scale.setScalar(s);obj.visible=false;scene.add(obj);
+  const mixer=new THREE.AnimationMixer(obj),act={};for(const k in AV.clips){act[k]=mixer.clipAction(AV.clips[k]);if(k==='enter'||k==='exit'){act[k].setLoop(THREE.LoopOnce,1);act[k].clampWhenFinished=true;}}
+  return{obj,mixer,act,cur:null,name,ped:null,lx:0,lz:0,sp:0};}
+function avPlay(a,k,fade){if(!a.act[k])return;if(a.cur===k)return;const n=a.act[k];n.reset().setEffectiveWeight(1).play();if(a.cur&&a.act[a.cur])a.act[a.cur].crossFadeTo(n,fade==null?0.25:fade,false);a.cur=k;}
+function avPick(list){const ok=list.filter(n=>AV.models[n]);return ok.length?pick(ok):pick(Object.keys(AV.models).filter(n=>n!=="josh"));}
+function avReady(){if(!AV.models.josh||!AV.clips.walk||!AV.clips.idle)return;AV.ready=true;AV.cap=qLevel===0?8:12;AV.josh=avMake('josh',1.8);toast('Josh is ready');}
+function updateAvatars(dt){if(!AV.ready)return;const t=player.inCar||player;
+  // ---- Josh (you)
+  const J=AV.josh;if(J){const e=S.entry,x=S.exit;const onFoot=!player.inCar&&!player.inAir&&S.deadT<=0&&!S.chute&&player.knockT<=0;const show=onFoot||!!e||!!x;
+    if(show){J.obj.visible=true;player.human.g.visible=false;AV.shown=true;J.obj.position.set(player.x,player.y||0,player.z);J.obj.rotation.y=player.h;
+      if(e||x){const s=e||x,ph=s.phase,tt=s.t,key=e?'enter':'exit',clip=AV.clips[key];if(clip){avPlay(J,key,0.12);const map=e?{approach:[0,0.12,0.45],open:[0.12,0.35,e.jack?0.22:0.38],pull:[0.35,0.35,0.8],enter:[0.35,0.85,0.55],close:[0.85,1,0.3]}:{open:[0,0.3,0.4],out:[0.3,0.8,0.5],close:[0.8,1,0.3]};
+          const m=map[ph]||[0,1,1],k=Math.min(1,tt/m[2]),nt=(m[0]+(m[1]-m[0])*k)*clip.duration;J.act[key].paused=true;J.act[key].time=nt;J.mixer.update(0);}}
+      else{const dx=player.x-J.lx,dz=player.z-J.lz,sp=Math.hypot(dx,dz)/Math.max(dt,1e-3);J.sp+=(Math.min(sp,12)-J.sp)*Math.min(1,dt*8);const v=J.sp;
+        const wet=inDeepWater(player.x,player.z)&&(player.y||0)<0.4;let k;
+        if(wet){k=v>0.6?'swim':'tread';J.obj.position.y=(player.y||0)-(k==='swim'?0.5:1.25);}else k=v>3.4?(S.hp<35&&AV.clips.injured?'injured':'run'):v>0.25?'walk':'idle';
+        avPlay(J,k);const A=J.act[k];if(A){A.paused=false;A.timeScale=k==='walk'?clamp(v/1.4,0.6,1.7):k==='run'||k==='injured'?clamp(v/5,0.75,1.5):k==='swim'?clamp(v/1.6,0.7,1.6):1;}J.mixer.update(dt);}}
+    else if(AV.shown){J.obj.visible=false;AV.shown=false;if(!player.inCar)player.human.g.visible=true;}
+    J.lx=player.x;J.lz=player.z;}
+  // ---- nearest pedestrians become realistic people
+  AV.t-=dt;if(AV.t<=0){AV.t=0.4;const ok=p=>!p.dead&&!p._cul&&p.h.g.parent===scene&&/walk|stroll|flee|chat|wait|copchase|return/.test(p.state)&&Math.abs(p.x-t.x)<48&&Math.abs(p.z-t.z)<48;
+    const want=peds.filter(ok).sort((a,b)=>Math.hypot(a.x-t.x,a.z-t.z)-Math.hypot(b.x-t.x,b.z-t.z)).slice(0,AV.cap);const wantSet=new Set(want);
+    for(const a of AV.pool)if(a.ped&&!wantSet.has(a.ped)){const p=a.ped;if(!p._cul)p.h.g.visible=true;p._av=null;a.ped=null;a.obj.visible=false;}
+    for(const p of want){if(p._av)continue;const nm=p._avm||(p._avm=(p.h.look&&p.h.look.female)?avPick(['sophie','kate']):avPick(['remy','leonard']));let a=AV.pool.find(q=>!q.ped&&q.name===nm);
+      if(!a&&AV.pool.length<AV.cap+4){a=avMake(nm,1.62+Math.random()*0.22);if(a)AV.pool.push(a);}if(!a)continue;a.ped=p;p._av=a;a.lx=p.x;a.lz=p.z;a.sp=0;a.cur=null;a.obj.visible=true;}}
+  for(const a of AV.pool){const p=a.ped;if(!p)continue;if(p.dead||!/walk|stroll|flee|chat|wait|copchase|return/.test(p.state)){if(!p._cul)p.h.g.visible=true;p._av=null;a.ped=null;a.obj.visible=false;continue;}
+    p.h.g.visible=false;const g=p.h.g;a.obj.position.set(g.position.x,g.position.y,g.position.z);a.obj.rotation.y=g.rotation.y;
+    const sp=Math.hypot(p.x-a.lx,p.z-a.lz)/Math.max(dt,1e-3);a.lx=p.x;a.lz=p.z;a.sp+=(Math.min(sp,9)-a.sp)*Math.min(1,dt*6);const v=a.sp;
+    const k=(p.state==='flee'||v>3.2)?(p.hp<45&&AV.clips.injured?'injured':'run'):v>0.2?'walk':'idle';avPlay(a,k,0.3);const A=a.act[k];if(A)A.timeScale=k==='walk'?clamp(v/1.35,0.6,1.6):k==='run'||k==='injured'?clamp(v/4.6,0.75,1.4):1;
+    a.mixer.update(dt);}}
+
 function start(){
-  S.started=true;mpInit();setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  S.started=true;mpInit();setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
   camYaw=player.h+Math.PI;
   toast('Sunny Mart is right next to you · purple $ on the map = shops');
