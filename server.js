@@ -65,22 +65,28 @@ wss.on('connection', (ws) => {
   ws.on('message', (buf) => {
     let msg;
     try { msg = JSON.parse(buf); } catch (e) { return; }
-    if (!msg || msg.t !== 'p' || !msg.d || typeof msg.d !== 'object') return;
+    if (msg && msg.t === 'ping') { if (typeof msg.c === 'number') ws.send(JSON.stringify({ t: 'pong', c: msg.c })); return; }
+    if (!msg || msg.t !== 'p' || !msg.d || typeof msg.d !== 'object' || Array.isArray(msg.d)) return;
+    const d = {};
     for (const key of Object.keys(msg.d).slice(0, 32)) {
+      d[key] = msg.d[key];
       if (msg.d[key] === null) delete client.p[key];
       else client.p[key] = msg.d[key];
     }
-    if (JSON.stringify(client.p).length > 8192) client.p = {};
-    dirty = true;
+    if (JSON.stringify(client.p).length > 8192) { client.p = {}; dirty = true; return; }
+    // relay this player's change to everyone else right away (no waiting for a tick)
+    const out = JSON.stringify({ t: 'u', id, d });
+    for (const c of clients.values()) if (c.id !== id && c.ws.readyState === 1) c.ws.send(out);
   });
   ws.on('close', () => { clients.delete(id); dirty = true; });
   ws.on('error', () => {});
 });
 
-// Broadcast everyone's state ~20x a second when something changed.
+// Full player list when someone joins or leaves (checked 20x a second), plus a resync every 3 seconds.
+let lastFull = 0;
 setInterval(() => {
-  if (!dirty) return;
-  dirty = false;
+  if (!dirty && Date.now() - lastFull < 3000) return;
+  dirty = false; lastFull = Date.now();
   const msg = JSON.stringify({ t: 'peers', peers: [...clients.values()].map((c) => ({ id: c.id, p: c.p })) });
   for (const c of clients.values()) if (c.ws.readyState === 1) c.ws.send(msg);
 }, 50);

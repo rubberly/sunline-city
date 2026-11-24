@@ -3379,10 +3379,9 @@ function mpSync(peers){
         if(player.inCar)player.inCar.hp-=(+hit.d||0)*0.5;
         if(alive&&S.deadT>0){MP.deadId++;MP.room.presence({dead:{by:p.peer,id:MP.deadId}}).catch(()=>{});}}}
     const dead=pr.dead;if(dead&&dead.by===MP.myPeer&&dead.id>(MP.seenDead[p.peer]||0)){MP.seenDead[p.peer]=dead.id;MP.kills++;toast('You took out '+(MP.names[p.by]||'a player')+' · kills: '+MP.kills,'cash');}}
-  for(const [peer,r] of MP.remotes)if(!peers.some(p=>p.peer===peer)){mpRemove(r);MP.remotes.delete(peer);}
-  mpPanel();}
+  for(const [peer,r] of MP.remotes)if(!peers.some(p=>p.peer===peer)){mpRemove(r);MP.remotes.delete(peer);}}
 function mpPanel(){const el=$('mpPanel');if(!el)return;if(!MP.ready){el.hidden=true;return;}el.hidden=false;
-  const rows=['<b>ONLINE VERSUS</b>','<div class="mpr"><i style="background:#2de2c6"></i><span>You</span><em>'+MP.kills+' KO</em><u style="width:'+Math.max(0,S.hp)+'%"></u></div>'];
+  const rows=['<b>ONLINE VERSUS</b>'+(MP.ping?' <small>'+Math.round(MP.ping)+' ms</small>':''),'<div class="mpr"><i style="background:#2de2c6"></i><span>You</span><em>'+MP.kills+' KO</em><u style="width:'+Math.max(0,S.hp)+'%"></u></div>'];
   for(const r of MP.remotes.values()){const n=(MP.names[r.by]||r.nm||'Player').replace(/[<>&"]/g,'');rows.push('<div class="mpr"><i style="background:#'+r.col.toString(16).padStart(6,'0')+'"></i><span>'+n+'</span><em>'+((r.st&&r.st.k)|0)+' KO</em><u style="width:'+clamp((r.st&&r.st.hp)|0,0,100)+'%"></u></div>');}
   if(!MP.remotes.size)rows.push('<small>Share this game and have a friend open it to play against you.</small>');
   el.innerHTML=rows.join('');}
@@ -3394,14 +3393,16 @@ function mpCarHits(c){if(!MP.ready)return;const sp=Math.hypot(c.vx,c.vz),fx=Math
     if(r.st.m==='f'){const a=dx*fx+dz*fz,s2=dx*fz-dz*fx;if(Math.abs(a)<2.6&&Math.abs(s2)<1.4&&sp>5)mpHit(r,sp*3.5,c.vx*0.8,c.vz*0.8);}
     else if(r.st.m==='c'||r.st.m==='b'){const d=Math.hypot(dx,dz);if(d<4&&d>0.01){const rel=sp-(r.st.s||0);if(rel>6)mpHit(r,rel*1.6,c.vx*0.5,c.vz*0.5);const push=(4-d)/2;c.x-=dx/d*push;c.z-=dz/d*push;c.vx*=0.6;c.vz*=0.6;}}}}
 function mpTick(dt){if(!MP.ready)return;
-  MP.t+=dt;if(MP.t>0.066){MP.t=0;const c=player.inCar,a=player.inAir,src=c||a||player;
+  MP.t+=dt;if(MP.t>0.05){MP.t=0;const c=player.inCar,a=player.inAir,src=c||a||player;
     const st={x:+src.x.toFixed(2),y:+((src.y)||0).toFixed(2),z:+src.z.toFixed(2),h:+((c?c.h:a?a.yaw:player.h)||0).toFixed(3),m:c?(c.boat?'b':'c'):a?'a':'f',
       s:+(c?Math.hypot(c.vx,c.vz):a?a.v:Math.hypot(player.vx,player.vz)).toFixed(1),hp:Math.max(0,Math.round(S.hp)),k:MP.kills,p:player.punchT>0?1:0,w:player.swim?1:0,kn:player.knockT>0?1:0,
       cc:c&&c.body&&c.body.material&&c.body.material.color?c.body.material.color.getHex():0};
     const patch={mp:st};if(!MP.lookSent){patch.look=mpLookOf(player.human);patch.nm=MP.nick;MP.lookSent=true;}
     MP.room.presence(patch).catch(()=>{});}
-  for(const r of MP.remotes.values()){const s=r.st;r.cd=Math.max(0,r.cd-dt);const k=1-Math.exp(-12*dt);
-    if(Math.abs(s.x-r.x)+Math.abs(s.z-r.z)>40){r.x=s.x;r.y=s.y;r.z=s.z;}r.x+=(s.x-r.x)*k;r.y+=(s.y-r.y)*k;r.z+=(s.z-r.z)*k;r.hd+=angDiff(r.hd,s.h)*k;
+  const now=performance.now()/1000;for(const r of MP.remotes.values()){const s=r.st;r.cd=Math.max(0,r.cd-dt);const k=1-Math.exp(-14*dt);
+    if(s!==r.lastSt){const p=r.lastSt,gap=now-(r.rt||0);if(p&&gap>0.015&&gap<0.6&&Math.abs(s.x-p.x)+Math.abs(s.z-p.z)<40){const b=0.5;r.vx=lerp(r.vx||0,(s.x-p.x)/gap,b);r.vy=lerp(r.vy||0,(s.y-p.y)/gap,b);r.vz=lerp(r.vz||0,(s.z-p.z)/gap,b);}else{r.vx=r.vy=r.vz=0;}r.lastSt=s;r.rt=now;}
+    const age=Math.min(0.2,now-(r.rt||now)),tx=s.x+(r.vx||0)*age,ty=s.y+(r.vy||0)*age,tz=s.z+(r.vz||0)*age;
+    if(Math.abs(tx-r.x)+Math.abs(tz-r.z)>40){r.x=tx;r.y=ty;r.z=tz;}r.x+=(tx-r.x)*k;r.y+=(ty-r.y)*k;r.z+=(tz-r.z)*k;r.hd+=angDiff(r.hd,s.h)*k;
     const inVeh=s.m==='c'||s.m==='b';
     if(inVeh){if(!r.car){r.car=spawnCar(r.x,r.z,r.hd,'parked',false);cars.splice(cars.indexOf(r.car),1);}
       if(s.cc&&r.car.body&&r.car.body.material&&r.car.body.material.color&&r.car.body.material.color.getHex()!==s.cc){r.car.body.material=r.car.body.material.clone();r.car.body.material.color.setHex(s.cc);}
@@ -3411,18 +3412,22 @@ function mpTick(dt){if(!MP.ready)return;
       if(s.p){r.h.shR.rotation.set(-1.6,0,0.1);r.h.elR.rotation.x=-0.1;}}
     r.label.position.set(r.x,r.y+(inVeh?3.0:2.45),r.z);r.label.visible=true;}
   MP.pt=(MP.pt||0)+dt;if(MP.pt>0.5){MP.pt=0;mpPanel();}}
-function wsRoom(){return new Promise(res=>{let ws,done=false;const fin=v=>{if(!done){done=true;res(v);}};
-  try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');}catch(e){fin(null);return;}
-  const st={me:null,handlers:[],pending:{},timer:0},room={
-    presence(patch){Object.assign(st.pending,patch);if(!st.timer)st.timer=setTimeout(()=>{st.timer=0;if(ws.readyState===1)ws.send(JSON.stringify({t:'p',d:st.pending}));st.pending={};},50);return Promise.resolve();},
+function wsRoom(){return new Promise(res=>{let ws=null,done=false,tries=0;const fin=v=>{if(!done){done=true;res(v);}};
+  const st={me:null,handlers:[],pending:{},timer:0,last:0},room={
+    presence(patch){Object.assign(st.pending,patch);const flush=()=>{st.timer=0;if(ws&&ws.readyState===1&&Object.keys(st.pending).length){ws.send(JSON.stringify({t:'p',d:st.pending}));st.pending={};st.last=performance.now();}};
+      const wait=40-(performance.now()-st.last);if(wait<=0&&!st.timer)flush();else if(!st.timer)st.timer=setTimeout(flush,Math.max(0,wait));return Promise.resolve();},
     onPeers(h){st.handlers.push(h);return()=>{};}};
-  let prev=new Map();
-  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(_){return;}
-    if(m.t==='hello'){st.me=m.id;fin(room);}
-    else if(m.t==='peers'&&Array.isArray(m.peers)){const peers=m.peers.map(p=>({peer:String(p.id),by:null,isMe:p.id===st.me,sameTab:p.id===st.me,kind:'viewer',guest:false,presence:p.p||{}}));
-      const cur=new Map(peers.map(p=>[p.peer,p])),joined=peers.filter(p=>!prev.has(p.peer)),left=[...prev.values()].filter(p=>!cur.has(p.peer));prev=cur;
-      for(const h of st.handlers)h({peers,joined,left,updated:peers});}};
-  ws.onerror=()=>fin(null);ws.onclose=()=>{if(done&&MP.ready){toast('Disconnected from the online server','bad');}};setTimeout(()=>fin(null),8000);});}
+  let prev=new Map();const emit=(joined,left,updated)=>{const peers=[...prev.values()];for(const h of st.handlers)h({peers,joined,left,updated});};
+  const connect=()=>{try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');}catch(e){fin(null);return;}
+    ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(_){return;}
+      if(m.t==='hello'){st.me=m.id;tries=0;MP.lookSent=false;fin(room);}
+      else if(m.t==='pong'){const r=performance.now()-(+m.c||0);if(r>=0&&r<10000)MP.ping=MP.ping?MP.ping*0.7+r*0.3:r;}
+      else if(m.t==='u'&&m.d&&typeof m.d==='object'){const p=prev.get(String(m.id));if(!p)return;const pr=Object.assign({},p.presence);for(const k in m.d){if(m.d[k]===null)delete pr[k];else pr[k]=m.d[k];}p.presence=pr;emit([],[],[p]);}
+      else if(m.t==='peers'&&Array.isArray(m.peers)){const peers=m.peers.map(p=>({peer:String(p.id),by:null,isMe:p.id===st.me,sameTab:p.id===st.me,kind:'viewer',guest:false,presence:p.p||{}}));
+        const cur=new Map(peers.map(p=>[p.peer,p])),joined=peers.filter(p=>!prev.has(p.peer)),left=[...prev.values()].filter(p=>!cur.has(p.peer));prev=cur;emit(joined,left,peers);}};
+    ws.onerror=()=>{if(!done)fin(null);};
+    ws.onclose=()=>{if(!done)return;prev=new Map();emit([],[],[]);if(MP.ready&&tries===0)toast('Connection lost · reconnecting...','bad');tries++;setTimeout(connect,Math.min(10000,1500*tries));};};
+  connect();setInterval(()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'ping',c:performance.now()}));},2000);setTimeout(()=>fin(null),8000);});}
 async function mpInit(){try{let room=null;
   if(window.claude&&typeof window.claude.use==='function'){try{room=await window.claude.use('room');}catch(e){}if(room){try{MP.user=await window.claude.use('user');}catch(e){}}}
   if(!room&&/^https?:$/.test(location.protocol))room=await wsRoom();
@@ -4203,8 +4208,8 @@ function lobbyPanels(d){if(d.panels)return;d.panels=[];for(const s of [-1,1]){co
 function setPanels(d,open){if(!d.panels)return;for(const p of d.panels){const s=p.userData.s,o=0.62+open*1.1;p.position.set(d.x+d.nz*s*o+d.nx*0.08,1.5,d.z-d.nx*s*o+d.nz*0.08);}}
 function updateLobby(dt){const A=LOBBY.anim;
   if(A){A.t+=dt;const d=A.door;player.vx=player.vz=0;
-    if(A.dir==='in'){const k=Math.min(1,A.t/0.9);setPanels(d,Math.min(1,A.t/0.5));player.x=lerp(A.x0,d.x+d.nx*0.2,k);player.z=lerp(A.z0,d.z+d.nz*0.2,k);player.h=d.yaw+Math.PI;
-      if(A.t>=0.9&&!A.faded){A.faded=true;fadeTo(()=>{lobbyPeople();LOBBY.cur=d;LOBBY.room.visible=true;player.x=0;player.z=7.4;player.y=LOBBY.Y;player.vy=0;player.h=Math.PI;
+    if(A.dir==='in'){const k=Math.min(1,A.t/0.9);setPanels(d,Math.min(1,A.t/0.5));if(!A.inside){player.x=lerp(A.x0,d.x+d.nx*0.2,k);player.z=lerp(A.z0,d.z+d.nz*0.2,k);player.h=d.yaw+Math.PI;}
+      if(A.t>=0.9&&!A.faded){A.faded=true;fadeTo(()=>{A.inside=true;lobbyPeople();LOBBY.cur=d;LOBBY.room.visible=true;player.x=0;player.z=7.4;player.y=LOBBY.Y;player.vy=0;player.h=Math.PI;
         const c=LOBBY.signTex.image.getContext('2d');c.fillStyle='#1b2430';c.fillRect(0,0,512,96);c.fillStyle='#e9c46a';c.font='bold 46px Georgia,serif';c.textAlign='center';c.textBaseline='middle';c.fillText(d.name.toUpperCase(),256,50);LOBBY.signTex.needsUpdate=true;
         const r=LOBBY.people.find(p=>p.role==='desk');if(r)setTimeout(()=>say(r,'Welcome to '+d.name+'!'),700);});}
       if(A.t>1.6){setPanels(d,Math.max(0,1-(A.t-1.6)/0.6));if(A.t>2.2)LOBBY.anim=null;}}
