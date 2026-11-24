@@ -3155,7 +3155,7 @@ function updateCamera(dt){
   } else {if(!S.ct||Math.abs(S.ct.x-player.x)+Math.abs(S.ct.z-player.z)>20)S.ct={x:player.x,y:player.y,z:player.z};{const kf=1-Math.exp(-14*dt);S.ct.x+=(player.x-S.ct.x)*kf;S.ct.y+=(player.y-S.ct.y)*(1-Math.exp(-9*dt));S.ct.z+=(player.z-S.ct.z)*kf;}tx=S.ct.x;ty=S.ct.y+1.6;tz=S.ct.z;dist=S.insideShop?3.6:[4,5.2,7.2,5.2][S.camMode==null?1:S.camMode];camera.fov=lerp(camera.fov,62,1-Math.exp(-3*dt));}
   S.cd=S.cd==null?dist:S.cd+(dist-S.cd)*(1-Math.exp(-4*dt));dist=S.cd;
   camera.updateProjectionMatrix();
-  const fp=S.camMode===3;if(!S.entry&&!S.exit)player.human.g.visible=!player.inCar&&!fp;
+  const fp=S.camMode===3;if(!S.entry&&!S.exit)player.human.g.visible=!player.inCar&&!fp&&!AV.shown;
   if(fp){const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw),pp=camPitch-0.32;let px,py,pz;
     if(player.inCar){const c=player.inCar,hx=Math.sin(c.h),hz=Math.cos(c.h);px=c.x+hx*0.1+hz*0.38;pz=c.z+hz*0.1-hx*0.38;py=(c.y||0)+Math.min(1.45,(c.roofY||1.6)-0.14);}
     else{px=player.x+fx*0.18;pz=player.z+fz*0.18;py=player.y+1.66;}
@@ -4104,10 +4104,10 @@ function avMake(name,height){const M=AV.models[name];if(!M)return null;const obj
   return{obj,mixer,act,cur:null,name,ped:null,lx:0,lz:0,sp:0};}
 function avPlay(a,k,fade){if(!a.act[k])return;if(a.cur===k)return;const n=a.act[k];n.reset().setEffectiveWeight(1).play();if(a.cur&&a.act[a.cur])a.act[a.cur].crossFadeTo(n,fade==null?0.25:fade,false);a.cur=k;}
 function avPick(list){const ok=list.filter(n=>AV.models[n]);return ok.length?pick(ok):pick(Object.keys(AV.models).filter(n=>n!=="josh"));}
-function avReady(){if(!AV.models.josh||!AV.clips.walk||!AV.clips.idle)return;AV.ready=true;AV.cap=qLevel===0?8:12;AV.josh=avMake('josh',1.8);toast('Josh is ready');}
+function avReady(){if(!AV.models.josh||!AV.clips.walk||!AV.clips.idle)return;AV.ready=true;AV.cap=qLevel===0?16:22;AV.josh=avMake('josh',1.8);toast('Josh is ready');}
 function updateAvatars(dt){if(!AV.ready)return;const t=player.inCar||player;
   // ---- Josh (you)
-  const J=AV.josh;if(J){const e=S.entry,x=S.exit;const onFoot=!player.inCar&&!player.inAir&&S.deadT<=0&&!S.chute&&player.knockT<=0;const show=onFoot||!!e||!!x;
+  const J=AV.josh;if(J){const e=S.entry,x=S.exit;const onFoot=!player.inCar&&!player.inAir&&S.deadT<=0&&!S.chute&&player.knockT<=0;const show=(onFoot||!!e||!!x)&&S.camMode!==3;
     if(show){J.obj.visible=true;player.human.g.visible=false;AV.shown=true;J.obj.position.set(player.x,player.y||0,player.z);J.obj.rotation.y=player.h;
       if(e||x){const s=e||x,ph=s.phase,tt=s.t,key=e?'enter':'exit',clip=AV.clips[key];if(clip){avPlay(J,key,0.12);const map=e?{approach:[0,0.12,0.45],open:[0.12,0.35,e.jack?0.22:0.38],pull:[0.35,0.35,0.8],enter:[0.35,0.85,0.55],close:[0.85,1,0.3]}:{open:[0,0.3,0.4],out:[0.3,0.8,0.5],close:[0.8,1,0.3]};
           const m=map[ph]||[0,1,1],k=Math.min(1,tt/m[2]),nt=(m[0]+(m[1]-m[0])*k)*clip.duration;J.act[key].paused=true;J.act[key].time=nt;J.mixer.update(0);}}
@@ -4118,7 +4118,7 @@ function updateAvatars(dt){if(!AV.ready)return;const t=player.inCar||player;
     else if(AV.shown){J.obj.visible=false;AV.shown=false;if(!player.inCar)player.human.g.visible=true;}
     J.lx=player.x;J.lz=player.z;}
   // ---- nearest pedestrians become realistic people
-  AV.t-=dt;if(AV.t<=0){AV.t=0.4;const ok=p=>!p.dead&&!p._cul&&p.h.g.parent===scene&&/walk|stroll|flee|chat|wait|copchase|return/.test(p.state)&&Math.abs(p.x-t.x)<48&&Math.abs(p.z-t.z)<48;
+  AV.t-=dt;if(AV.t<=0){AV.t=0.4;const ok=p=>!p.dead&&!p._cul&&p.h.g.parent===scene&&/walk|stroll|flee|chat|wait|copchase|return/.test(p.state)&&Math.abs(p.x-t.x)<70&&Math.abs(p.z-t.z)<70;
     const want=peds.filter(ok).sort((a,b)=>Math.hypot(a.x-t.x,a.z-t.z)-Math.hypot(b.x-t.x,b.z-t.z)).slice(0,AV.cap);const wantSet=new Set(want);
     for(const a of AV.pool)if(a.ped&&!wantSet.has(a.ped)){const p=a.ped;if(!p._cul)p.h.g.visible=true;p._av=null;a.ped=null;a.obj.visible=false;}
     for(const p of want){if(p._av)continue;const nm=p._avm||(p._avm=(p.h.look&&p.h.look.female)?avPick(['sophie','kate']):avPick(['remy','leonard']));let a=AV.pool.find(q=>!q.ped&&q.name===nm);
