@@ -4339,7 +4339,7 @@ function hrMakePools(){if(!HR.fpool){HR.fpool=[0,1,2].map(()=>{const h=makeHuman
   if(!HR.pool&&AV.ready){HR.pool=[];for(const n of Object.keys(AV.models))if(n!=='josh'){const a=avMake(n,1.72);if(a){a.s0=a.obj.scale.x;HR.pool.push(a);}}}}
 const D_IN=5.0;
 function hrEnter(d){if(HR.cur)return;hrRoom();hrMakePools();glassSound&&glassSound();thud(0.4);
-  fadeTo(()=>{HR.cur=d;HR.room.visible=true;player.x=0;player.z=D_IN;player.y=HR.Y;player.vy=0;player.h=Math.PI;HR.crack=null;HR.px=player.x;HR.pz=player.z;
+  fadeTo(()=>{HR.cur=d;HR.room.visible=true;HR.prevCam=S.camMode;S.camMode=3;HR.lastUp=false;player.x=0;player.z=D_IN;player.y=HR.Y;player.vy=0;player.h=Math.PI;HR.crack=null;HR.px=player.x;HR.pz=player.z;
     const R=hrRand(d.seed),hour=S.time*24,night=hour<6||hour>=22;
     for(const l of HR.loot){l.here=R()<l.p&&!d.taken[l.k];l.m.forEach(m=>m.visible=l.here);}
     for(const r of HR.res){r.obj.visible=false;r.obj.rotation.set(0,0,0);}HR.res=[];
@@ -4349,7 +4349,7 @@ function hrEnter(d){if(HR.cur)return;hrRoom();hrMakePools();glassSound&&glassSou
       obj.rotation.order='YXZ';const x=sp[0]+(act==='bed'?(i?0.45:-0.45):act==='kbed'?0:R()*0.6-0.3),z=sp[1];
       HR.res.push({obj,av,h,kid,act,x,y:HR.Y+(sp[3]?HR_UP:0),z,face:sp[2],mode:night?'sleep':'calm',t:0,hp:kid?40:70,said:0,wake:0,cd:0,tx:x,tz:z,home:[x,z],stair:0});}
     toast(night?'Everyone is asleep upstairs · be quiet':'Someone is home · grab what you can','bad');});}
-function hrExit(){if(!HR.cur)return;const d=HR.cur;fadeTo(()=>{HR.cur=null;HR.room.visible=false;for(const r of HR.res)r.obj.visible=false;S.floor=null;player.x=d.x+d.nx*1.6;player.z=d.z+d.nz*1.6;player.y=0.25;player.vy=0;player.h=d.yaw;
+function hrExit(){if(!HR.cur)return;const d=HR.cur;fadeTo(()=>{HR.cur=null;HR.room.visible=false;if(S.camMode===3)S.camMode=HR.prevCam==null?1:HR.prevCam;for(const r of HR.res)r.obj.visible=false;S.floor=null;player.x=d.x+d.nx*1.6;player.z=d.z+d.nz*1.6;player.y=0.25;player.vy=0;player.h=d.yaw;
   const left=HR.loot.filter(l=>l.here&&!d.taken[l.k]).length;if(left===0)d.robbedAt=clock;});}
 function hrNoise(x,z,r){for(const p of HR.res){if(p.mode==='out')continue;const d=Math.hypot(p.x-x,p.z-z);if(d<r&&(p.mode==='sleep'||p.mode==='calm')){p.mode='alert';p.t=0;}}}
 function hrBurglary(){if(HR.res.some(p=>p.mode!=='sleep'&&p.mode!=='out'&&p.mode!=='calm'))addCrime(1,'Burglary');}
@@ -4383,8 +4383,12 @@ function updateHouseRob(dt){if(!HR.cur||!HR.room)return;const W=8.6,D=5.6,ly=pla
     const inSx=player.x>HR_ST.x0-0.15&&player.x<HR_ST.x1+0.15;
     if(pf===0&&inSx&&player.z<HR_ST.zb&&player.z>HR_ST.zt-0.1&&hrRampH(player.z)-ly>0.7)player.x=HR.px<(HR_ST.x0+HR_ST.x1)/2?HR_ST.x0-0.16:HR_ST.x1+0.16;
     if(ly>HR_UP-0.5){const inZ=player.z>HR_ST.zt&&player.z<3.6;if(inZ&&HR.px<=0.3&&player.x>0.3)player.x=0.29;if(inZ&&HR.px>=1.7&&player.x<1.7)player.x=1.71;if(HR.pz>=3.6&&player.z<3.6&&player.x>0.3&&player.x<1.7)player.z=3.61;}}
+  // never drop through the upstairs floor: only the stairwell opening lets you down
+  const overHole=player.x>0.2&&player.x<1.8&&player.z>-1.7&&player.z<3.7;
+  if(HR.lastUp&&!overHole&&player.y<HR.Y+HR_UP-0.05&&player.y>HR.Y+HR_UP-2.5){player.y=HR.Y+HR_UP;if(player.vy<0)player.vy=0;}
+  HR.lastUp=player.y>HR.Y+HR_UP-0.3&&!overHole;
   HR.px=player.x;HR.pz=player.z;
-  HR.up.visible=ly>1.7;const day=clamp(Math.sin((S.time-0.25)*Math.PI*2)*1.6+0.35,0.1,1);HR.winM.color.setRGB(day,day,Math.min(1,day*1.05+0.05));
+  HR.up.visible=ly>1.7||S.camMode===3;const day=clamp(Math.sin((S.time-0.25)*Math.PI*2)*1.6+0.35,0.1,1);HR.winM.color.setRGB(day,day,Math.min(1,day*1.05+0.05));
   if(HR.crack){const l=HR.crack.l;if(Math.hypot(l.x-player.x,l.z-player.z)>1.8){HR.crack=null;toast('You stopped cracking the safe');}else{HR.crack.t+=dt;if(Math.random()<dt*2)thud(0.08);if(HR.crack.t>=l.slow){HR.crack=null;hrTakeDone(l);}}}
   for(const p of HR.res){const rf=hrFloor(p.y);p.obj.visible=rf===0||HR.up.visible||p.stair!==0;p.t+=dt;p.said-=dt;p.cd-=dt;const dx=player.x-p.x,dz=player.z-p.z,d=Math.hypot(dx,dz),same=rf===pf&&!p.stair;let moving=0;
     const sees=same&&d<9&&(Math.cos(Math.atan2(dx,dz)-p.face)>0.25||d<2.5);
