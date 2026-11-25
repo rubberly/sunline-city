@@ -4458,7 +4458,10 @@ function npcTheftReport(p,c,seen){const L=p&&p.life,who=L?L.name+', '+L.age+(L.j
   newsAdd('CRIME','Car stolen in '+where,who+' was seen breaking into a parked '+(c?npcCarName(c):'car')+(hr>=7&&hr<19?' in broad daylight':' late at night')+(seen?' · a witness filmed it':'')+'. Police are searching.');}
 function npcTryStart(){
   if(player.y<-50||HR.cur||player.inAir||S.deadT>0)return false;
-  const cand=cars.filter(c=>c.mode==='parked'&&!c.boat&&!c.moto&&c.doorL&&!c.police&&c!==player.inCar&&!(HOMEH&&c===HOMEH.car)&&(c.y||0)<1.5&&!c._npcLock).map(c=>({c,d:Math.hypot(c.x-player.x,c.z-player.z)})).filter(o=>o.d>18&&o.d<75).sort((a,b)=>a.d-b.d);
+  const cand=cars.filter(c=>c.mode==='parked'&&!c.boat&&!c.moto&&c.doorL&&!c.police&&c!==player.inCar&&!(HOMEH&&c===HOMEH.car)&&(c.y||0)<1.5&&!c._npcLock).map(c=>({c,d:Math.hypot(c.x-player.x,c.z-player.z)})).filter(o=>o.d>18&&o.d<220).sort((a,b)=>a.d-b.d);
+  // no parked car around? park one at a nearby kerbside spot for the thief to take
+  if(!cand.length){const sp=parkedSpots.filter(q=>{const d=Math.hypot(q.x-player.x,q.z-player.z);return d>30&&d<180&&!q.police&&!cars.some(c=>Math.abs(c.x-q.x)<3&&Math.abs(c.z-q.z)<3);});
+    for(let n=0;n<4&&sp.length&&!cand.length;n++){const q=sp.splice(Math.floor(Math.random()*sp.length),1)[0];const c=spawnCar(q.x,q.z,q.h,'parked',false);if(c&&c.doorL&&!c.boat&&!c.moto)cand.push({c,d:Math.hypot(c.x-player.x,c.z-player.z)});else if(c)removeCar(c);}}
   for(const {c} of cand.slice(0,8)){
     const ok=q=>!q.dead&&(q.state==='walk'||q.state==='stroll')&&!/cop|homeless|beach/.test(q.type);
     let p=peds.filter(q=>ok(q)&&Math.hypot(q.x-c.x,q.z-c.z)<35).sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z))[0];
@@ -4475,7 +4478,7 @@ function updateNpcTheft(dt){const j=NPCT.job;
     return;}
   const p=j.p,c=j.c,cy=c.y||0;j.t+=dt;
   if(c.mode!=='parked'||c===player.inCar||p.dead||p.state!=='carried'||j.t>60){npcAbort();return;}
-  const door=carLocal(c,1.85,0.35),seat=carLocal(c,0.42,0.05),faceCar=Math.atan2(seat[0]-door[0],seat[1]-door[1]),near=Math.hypot(c.x-player.x,c.z-player.z)<70;
+  const door=carLocal(c,1.85,0.35),seat=carLocal(c,0.42,0.05),faceCar=Math.atan2(seat[0]-door[0],seat[1]-door[1]),near=Math.hypot(c.x-player.x,c.z-player.z)<120;
   if(j.phase==='walk'){const dx=door[0]-p.x,dz=door[1]-p.z,d=Math.hypot(dx,dz),sp=1.7;
     if(d<0.25){j.phase='open';j.t=0;say(p,pick(['Nobody saw that...','Easy money.','Don\'t mind me.','Nice ride.']));if(near){toast((p.life?p.life.name:'Someone')+' is stealing a car!','bad');honk(0.2);}}
     else{p.x+=dx/d*Math.min(d,sp*dt);p.z+=dz/d*Math.min(d,sp*dt);j.ph+=dt*8;animHuman(p.h,j.ph,1,false);p.h.g.rotation.set(0,Math.atan2(dx,dz),0);}}
