@@ -3296,7 +3296,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(S.stars>0?dt*2.2:dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -4404,6 +4404,102 @@ function updateHouseRob(dt){if(!HR.cur||!HR.room)return;const W=8.6,D=5.6,ly=pla
     p.obj.rotation.x=lying?-Math.PI/2:0;if(!lying){let df=p.face-p.obj.rotation.y;df=Math.atan2(Math.sin(df),Math.cos(df));p.obj.rotation.y+=df*Math.min(1,dt*8);}else if(p.mode==='sleep')p.obj.rotation.y=0;
     if(p.av){avPlay(p.av,moving===2?'run':moving?'walk':'idle',0.25);p.av.mixer.update(dt);}
     else if(p.h){if(p.mode==='hands'||p.mode==='call')poseHandsUp(p.h);else animHuman(p.h,moving?clock*(moving===2?11:7):0,moving?1:0,moving===2);}}}
+
+// ---------- Sun 7 News (TV channel) + NPC car thieves ----------
+// NPC_THEFT_DAYS: an NPC steals a car once every this many in-game days (1 in-game day = DAY real seconds).
+var NPC_THEFT_DAYS=2;
+var NEWS={items:[],lastT:null,watch:false,wx:0,wz:0,el:null,cv:null,tex:null,scr:null,drawT:0,homeHooked:false,crimeT:{}};
+function gameDay(){return (MP&&MP.clockOff!=null)?Math.floor(mpWorldSec()/DAY):(S.day||0);}
+function newsClock(){const m=Math.floor(S.time*1440);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
+function newsWeather(){const t=($('clock')&&$('clock').textContent)||'';const i=t.indexOf('·');return i>=0?t.slice(i+1).trim():'Clear';}
+function newsAdd(tag,h,s){NEWS.items.unshift({tag,h,s,day:gameDay(),at:newsClock()});if(NEWS.items.length>24)NEWS.items.length=24;}
+const NEWS_FILL=[['Gator found in mall fountain, again','Wildlife officers say it "seemed happy"'],['Beltway traffic backed up for miles','Commuters advised to try the Crosstown Skyway'],['Local man wins speedway, gets ticket on the way home','"Worth it," he told Sun 7'],['Ferris wheel on Bay Harbor pier reopens','Rides are half price this weekend'],['Port Coral tower named tallest on the coast','Coral Spire tops out at 150 m'],['Swamp tours booked solid','Visitors hope to spot the famous fireflies'],['Sunny Mart slashes slushie prices','Brain-freeze warnings issued'],['Injured? Call Sal.','Paid advertisement']];
+function newsStories(){const out=[];
+  if(S.stars>0)out.push({tag:'LIVE',h:'Police hunt suspect in '+districtAt(player.x,player.z),s:'Wanted level '+S.stars+(S.stars>=3?' · police helicopter in the air':' · units responding')});
+  for(const it of NEWS.items.slice(0,6))out.push({tag:it.tag,h:it.h,s:it.s+' · Day '+(it.day+1)+', '+it.at});
+  const hr=S.time*24,w=newsWeather(),temp=Math.round(78+10*Math.sin((hr-9)/24*Math.PI*2)-(/rain|storm/i.test(w)?6:0));
+  out.push({tag:'WEATHER',h:w+' over Sunline City',s:temp+'°F right now · '+(hr<12?'humid afternoon ahead':hr<18?'warm evening, chance of storms':'mild night, sunny tomorrow')});
+  const k=gameDay();for(let i=0;i<2;i++){const f=NEWS_FILL[(k*3+i*5)%NEWS_FILL.length];out.push({tag:'CITY',h:f[0],s:f[1]});}
+  return out;}
+function newsWrap(g,text,maxW){const words=text.split(' '),lines=[];let cur='';for(const wd of words){const t=cur?cur+' '+wd:wd;if(g.measureText(t).width>maxW&&cur){lines.push(cur);cur=wd;}else cur=t;}if(cur)lines.push(cur);return lines;}
+function drawNews(g,w,h){const st=newsStories(),i=Math.floor(clock/6)%st.length,s=st[i],u=w/512;
+  const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#0b2545');gr.addColorStop(1,'#13315c');g.fillStyle=gr;g.fillRect(0,0,w,h);
+  g.fillStyle='rgba(255,255,255,.05)';for(let y=0;y<h;y+=4*u)g.fillRect(0,y,w,1);
+  g.fillStyle='#c1121f';g.fillRect(0,0,w,44*u);g.fillStyle='#fff';g.font='bold '+26*u+'px "Segoe UI",Arial,sans-serif';g.textBaseline='middle';g.textAlign='left';g.fillText('SUN 7 NEWS',14*u,23*u);
+  g.textAlign='right';g.font='bold '+18*u+'px "Segoe UI",Arial,sans-serif';const dts='Day '+(gameDay()+1)+'  '+newsClock(),lx=w-14*u-g.measureText(dts).width-22*u;g.fillText(dts,w-14*u,23*u);
+  g.fillText('LIVE',lx,23*u);if(Math.floor(clock*1.5)%2===0){g.fillStyle='#ff3b3b';g.beginPath();g.arc(lx-g.measureText('LIVE').width-12*u,23*u,6*u,0,7);g.fill();}g.fillStyle='#fff';
+  g.textAlign='left';g.fillStyle=s.tag==='LIVE'?'#ffd60a':s.tag==='CRIME'?'#ff6b6b':s.tag==='WEATHER'?'#7dd3fc':'#a7f3d0';g.font='bold '+17*u+'px "Segoe UI",Arial,sans-serif';g.fillText(s.tag,18*u,74*u);
+  g.fillStyle='#fff';g.font='bold '+30*u+'px "Segoe UI",Arial,sans-serif';const L=newsWrap(g,s.h,w-36*u).slice(0,3);L.forEach((ln,k)=>g.fillText(ln,18*u,(112+k*36)*u));
+  g.fillStyle='#cfe3ff';g.font=19*u+'px "Segoe UI",Arial,sans-serif';newsWrap(g,s.s,w-36*u).slice(0,2).forEach((ln,k)=>g.fillText(ln,18*u,(118+L.length*36+k*24)*u));
+  g.fillStyle='#ffd60a';g.fillRect(0,h-34*u,w,34*u);g.fillStyle='#111';g.font='bold '+17*u+'px "Segoe UI",Arial,sans-serif';
+  const tick=st.map(x=>x.h).join('   •   ')+'   •   ',tw=g.measureText(tick).width,off=(clock*70*u)%tw;g.fillText(tick,-off,h-16*u);g.fillText(tick,tw-off,h-16*u);
+  g.fillStyle='rgba(255,255,255,.7)';g.font=14*u+'px "Segoe UI",Arial,sans-serif';g.textAlign='right';g.fillText((i+1)+'/'+st.length,w-14*u,h-48*u);g.textAlign='left';}
+function newsOverlay(){if(NEWS.el)return;const d=document.createElement('div');d.id='newsTV';
+  d.style.cssText='position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);width:min(760px,92vw);aspect-ratio:16/9;z-index:40;border:10px solid #111;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);background:#000;display:none;pointer-events:none';
+  const cv=document.createElement('canvas');cv.width=1024;cv.height=576;cv.style.cssText='width:100%;height:100%;display:block;border-radius:4px';d.appendChild(cv);
+  const hint=document.createElement('div');hint.textContent='Press E or walk away to stop watching';hint.style.cssText='position:absolute;left:0;right:0;top:-32px;text-align:center;color:#fff;font:600 14px "Segoe UI",Arial,sans-serif;text-shadow:0 1px 3px #000';d.appendChild(hint);
+  document.body.appendChild(d);NEWS.el=d;NEWS.cv=cv;}
+function newsToggle(){newsOverlay();NEWS.watch=!NEWS.watch;NEWS.wx=player.x;NEWS.wz=player.z;NEWS.el.style.display=NEWS.watch?'block':'none';if(NEWS.watch){drawNews(NEWS.cv.getContext('2d'),1024,576);toast('Sun 7 News · Day '+(gameDay()+1));}}
+// your crimes make the news
+{const _addCrime=addCrime;addCrime=function(n,why){_addCrime(n,why);try{const k=String(why||'Crime');if(NEWS.crimeT[k]&&clock-NEWS.crimeT[k]<25)return;NEWS.crimeT[k]=clock;
+  const where=HR.cur&&HR.cur.x!=null?districtAt(HR.cur.x,HR.cur.z):districtAt(player.x,player.z);
+  const H={'Carjacking':'Carjacking in '+where,'Stole a police car':'Police cruiser stolen in '+where,'Burglary':'Break-in reported in '+where,'Home invasion':'Family calls 911 during home invasion in '+where,'Assault':'Assault reported in '+where};
+  newsAdd('CRIME',H[k]||(k+' reported in '+where),'Witnesses describe a suspect in a hurry · police ask anyone with information to call in');}catch(e){}};}
+// "Watch the news" inside any house you break into
+{const _hrAction=hrAction;hrAction=function(){const a=_hrAction();if(!HR.cur||player.inCar)return a;const py=player.y-HR.Y;if(py>1)return a;
+  const tv=HR.loot&&HR.loot.find(l=>l.k==='tv');if(!tv||HR.cur.taken.tv)return a;const d=Math.hypot(player.x+4.5,player.z-2.6);
+  if(d>2.3&&!NEWS.watch)return a;const mine={key:'E',label:NEWS.watch?'Stop watching TV':'Watch the news on TV',act:newsToggle,dist:Math.min(d,1.5)};
+  return a&&a.dist<mine.dist&&!NEWS.watch?a:mine;};}
+// ---- NPC car theft ----
+var NPCT={nextDay:null,nextT:0,job:null,wait:0,tries:0};
+function npcScheduleNext(first){const d=gameDay();if(first){NPCT.nextDay=d;NPCT.nextT=Math.min(0.92,S.time+rand(0.05,0.12));}else{NPCT.nextDay=d+NPC_THEFT_DAYS;NPCT.nextT=rand(0.33,0.9);}NPCT.tries=0;}
+function npcCarName(c){return c.moto?'motorbike':typeof c.kind==='string'?c.kind.replace(/[_-]/g,' '):'car';}
+function npcTheftReport(p,c,seen){const L=p&&p.life,who=L?L.name+', '+L.age+(L.job?', '+L.job:''):'A man in a hoodie',where=districtAt(c?c.x:player.x,c?c.z:player.z),hr=S.time*24;
+  newsAdd('CRIME','Car stolen in '+where,who+' was seen breaking into a parked '+(c?npcCarName(c):'car')+(hr>=7&&hr<19?' in broad daylight':' late at night')+(seen?' · a witness filmed it':'')+'. Police are searching.');}
+function npcTryStart(){
+  if(player.y<-50||HR.cur||player.inAir||S.deadT>0)return false;
+  const cand=cars.filter(c=>c.mode==='parked'&&!c.boat&&!c.moto&&c.doorL&&!c.police&&c!==player.inCar&&!(HOMEH&&c===HOMEH.car)&&(c.y||0)<1.5&&!c._npcLock).map(c=>({c,d:Math.hypot(c.x-player.x,c.z-player.z)})).filter(o=>o.d>18&&o.d<75).sort((a,b)=>a.d-b.d);
+  for(const {c} of cand.slice(0,8)){
+    const ok=q=>!q.dead&&(q.state==='walk'||q.state==='stroll')&&!/cop|homeless|beach/.test(q.type);
+    let p=peds.filter(q=>ok(q)&&Math.hypot(q.x-c.x,q.z-c.z)<35).sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z))[0];
+    if(!p){p=peds.find(q=>ok(q)&&Math.abs(q.x-player.x)+Math.abs(q.z-player.z)>110);if(!p)continue;const o=carLocal(c,7,-9);p.x=o[0];p.z=o[1];p.y=(c.y||0)+0.25;}
+    p.state='carried';p.partner=null;c._npcLock=true;NPCT.job={p,c,phase:'walk',t:0,ph:0};return true;}
+  return false;}
+function npcAbort(){const j=NPCT.job;if(!j)return;if(j.c.doorL)j.c.doorL.rotation.y=0;j.c._npcLock=false;if(j.p.state==='carried'){j.p.h.g.rotation.set(0,0,0);seatPose(j.p.h,0);backToPath(j.p);}NPCT.job=null;}
+function updateNpcTheft(dt){const j=NPCT.job;
+  if(!j){if(!S.started||S.paused)return;if(NPCT.nextDay==null){npcScheduleNext(true);return;}
+    if(gameDay()<NPCT.nextDay||(gameDay()===NPCT.nextDay&&S.time<NPCT.nextT))return;
+    NPCT.wait-=dt;if(NPCT.wait>0)return;NPCT.wait=4;NPCT.tries++;
+    if(npcTryStart())return;
+    if(NPCT.tries>15){const far=cars.filter(c=>c.mode==='parked'&&!c.boat);const c=far.length?pick(far):null;npcTheftReport(null,c,false);npcScheduleNext(false);}
+    return;}
+  const p=j.p,c=j.c,cy=c.y||0;j.t+=dt;
+  if(c.mode!=='parked'||c===player.inCar||p.dead||p.state!=='carried'||j.t>60){npcAbort();return;}
+  const door=carLocal(c,1.85,0.35),seat=carLocal(c,0.42,0.05),faceCar=Math.atan2(seat[0]-door[0],seat[1]-door[1]),near=Math.hypot(c.x-player.x,c.z-player.z)<70;
+  if(j.phase==='walk'){const dx=door[0]-p.x,dz=door[1]-p.z,d=Math.hypot(dx,dz),sp=1.7;
+    if(d<0.25){j.phase='open';j.t=0;say(p,pick(['Nobody saw that...','Easy money.','Don\'t mind me.','Nice ride.']));if(near){toast((p.life?p.life.name:'Someone')+' is stealing a car!','bad');honk(0.2);}}
+    else{p.x+=dx/d*Math.min(d,sp*dt);p.z+=dz/d*Math.min(d,sp*dt);j.ph+=dt*8;animHuman(p.h,j.ph,1,false);p.h.g.rotation.set(0,Math.atan2(dx,dz),0);}}
+  else if(j.phase==='open'){const k=Math.min(1,j.t/0.9);c.doorL.rotation.y=-1.15*ease(k);animHuman(p.h,0,0,false);p.h.shR.rotation.set(-1.1-0.3*Math.sin(k*Math.PI),0,0.3);p.h.elR.rotation.x=-0.6;p.h.g.rotation.set(0,faceCar,0);
+    if(k>=1){j.phase='enter';j.t=0;scareNear(c.x,c.z,p);}}
+  else if(j.phase==='enter'){const k=Math.min(1,j.t/0.6),q=ease(k);p.x=lerp(door[0],seat[0],q);p.z=lerp(door[1],seat[1],q);p.y=cy+0.25+0.12*Math.sin(k*Math.PI);
+    p.h.g.rotation.set(0,faceCar+(Math.PI/2)*q,0);seatPose(p.h,q);if(k>=1){j.phase='close';j.t=0;}}
+  else if(j.phase==='close'){const k=Math.min(1,j.t/0.3);c.doorL.rotation.y=-1.15*(1-ease(k));
+    if(k>=1){seatPose(p.h,0);npcTheftReport(p,c,near);c._npcLock=false;c._stolen=true;c._settled=false;c.mode='traffic';enterGraph(c);c.cruise=rand(13,17);c.s=2;if(GX&&GX.addDriver)GX.addDriver(c);
+      p.h.g.rotation.set(0,0,0);resetPed(p);NPCT.job=null;npcScheduleNext(false);}}}
+function updateNews(dt){
+  if(NEWS.lastT!=null&&S.time<NEWS.lastT-0.3)S.day=(S.day||0)+1;NEWS.lastT=S.time;
+  if(!NEWS.homeHooked&&typeof PUB_ACTS!=='undefined'){const a=PUB_ACTS.find(x=>x.label==='Watch TV');if(a){a.act=newsToggle;NEWS.homeAct=a;NEWS.homeHooked=true;}}
+  if(NEWS.homeAct)NEWS.homeAct.label=NEWS.watch?'Stop watching TV':'Watch TV';
+  updateNpcTheft(dt);
+  if(NEWS.watch&&(player.inCar||S.deadT>0||Math.hypot(player.x-NEWS.wx,player.z-NEWS.wz)>1.6)){NEWS.watch=false;if(NEWS.el)NEWS.el.style.display='none';}
+  // live picture on the TV inside broken-into houses
+  if(HR.room&&!NEWS.scr){NEWS.tex=canvasTex(512,288,()=>{});NEWS.scr=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.0),new THREE.MeshBasicMaterial({map:NEWS.tex}));NEWS.scr.position.set(-4.5,1.15,0.545);HR.room.add(NEWS.scr);}
+  const tvL=HR.loot&&HR.loot.find(l=>l.k==='tv');
+  if(NEWS.scr)NEWS.scr.visible=!!(HR.cur&&tvL&&!HR.cur.taken.tv&&tvL.m&&tvL.m[0]&&tvL.m[0].visible!==false);
+  NEWS.drawT-=dt;if(NEWS.drawT<=0){NEWS.drawT=0.1;
+    if(NEWS.scr&&NEWS.scr.visible){const g=NEWS.tex.image.getContext('2d');drawNews(g,512,288);NEWS.tex.needsUpdate=true;}
+    if(NEWS.watch&&NEWS.cv)drawNews(NEWS.cv.getContext('2d'),1024,576);}
+}
 
 function start(){
   S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
