@@ -299,7 +299,7 @@ const SWAMP_POOLS=[];for(const w of SWAMPS)for(let k=0;k<12;k++){const a=Math.ra
 const inSwampWater=(x,z)=>{for(const p of SWAMP_POOLS){const dx=x-p.x,dz=z-p.z;if(dx*dx+dz*dz<p.r*p.r)return true;}return false;};
 const swampFactor=(x,z)=>{let f=0;for(const w of SWAMPS)f=Math.max(f,1-clamp((Math.hypot(x-w.x,z-w.z)-w.r*0.6)/(w.r*0.7),0,1));return f;};
 const HOODS=[{name:'Heron Point',x:-960,z:-40,hs:115,ax:'x'},{name:'Cypress Park',x:-960,z:-840,hs:110,ax:'z'},{name:'Bayview Estates',x:-250,z:-1000,hs:130,ax:'x'},{name:'Lakewood',x:-300,z:1250,hs:130,ax:'z'},{name:'Willow Creek',x:-2050,z:-300,hs:130,ax:'z'}];HOODS.forEach(h=>{h.walks=[];});
-const HOOD_STREETS=[];const SFLATS={x0:-650,x1:-350,z0:192,z1:430,xs:[-560,-440],zs:[250,345]},SF_WALKS=[],LIFE_SPOTS=[],JOB_YARDS=[],JOBS={crane:null};const SPEEDWAY={x:-1100,z:760,A:130,R:80},STADIUM={x:0,z:600},HOME={x:-890,z:27,yaw:Math.PI};const SPRAWL={cells:new Map(),CS:160,chunks:[]};const CITIES=[{name:'Port Coral',x0:600,x1:1260,z0:-1320,z1:-700,core:[930,-1010],coreR:420,maxH:150,minH:14,style:'glass',spire:true,sign:['#0b3d5c','#ffffff'],gate:[702,-716,0]},{name:'Bay Harbor',x0:980,x1:1500,z0:-330,z1:330,core:[1200,0],coreR:380,maxH:70,minH:10,style:'stone',sign:['#c1121f','#ffffff'],gate:[996,-138,-Math.PI/2]}];
+var ROBH_SRC=[];const HOOD_STREETS=[];const SFLATS={x0:-650,x1:-350,z0:192,z1:430,xs:[-560,-440],zs:[250,345]},SF_WALKS=[],LIFE_SPOTS=[],JOB_YARDS=[],JOBS={crane:null};const SPEEDWAY={x:-1100,z:760,A:130,R:80},STADIUM={x:0,z:600},HOME={x:-890,z:27,yaw:Math.PI};const SPRAWL={cells:new Map(),CS:160,chunks:[]};const CITIES=[{name:'Port Coral',x0:600,x1:1260,z0:-1320,z1:-700,core:[930,-1010],coreR:420,maxH:150,minH:14,style:'glass',spire:true,sign:['#0b3d5c','#ffffff'],gate:[702,-716,0]},{name:'Bay Harbor',x0:980,x1:1500,z0:-330,z1:330,core:[1200,0],coreR:380,maxH:70,minH:10,style:'stone',sign:['#c1121f','#ffffff'],gate:[996,-138,-Math.PI/2]}];
 const inCity=(x,z,pad)=>CITIES.find(c=>x>c.x0-(pad||0)&&x<c.x1+(pad||0)&&z>c.z0-(pad||0)&&z<c.z1+(pad||0));const inSprawl=(x,z)=>SPRAWL.cells.has(Math.floor(x/160)+','+Math.floor(z/160));const inHood=(x,z,pad)=>HOODS.some(h=>Math.abs(x-h.x)<h.hs+(pad||0)&&Math.abs(z-h.z)<h.hs+(pad||0));
 const FORESTS=[{x:-1150,z:-1350,r:210},{x:-2150,z:300,r:150}];
 const CHUNKED=[];
@@ -950,7 +950,7 @@ const MARINAS=[];const lm2=c=>new THREE.MeshLambertMaterial({color:c});
   for(const h of houses){const alongW=Math.abs(h.z-152)<40;const sd=alongW?Math.sign(h.z-152):Math.sign(h.x+152);const yaw=alongW?(sd>0?Math.PI:0):(sd>0?-Math.PI/2:Math.PI/2);
     const d=alongW?h.d:h.w,w=alongW?h.w:h.d;HOUSE_LIST.push({x:h.x,z:h.z,yaw,w:Math.min(w,11),d:Math.min(d,10),st:h.h>5.4?2:1,gs:Math.random()<0.5?-1:1,front:Math.max(3,21-Math.min(d,10)/2-6),lot:24,lamp:false,car:false});}
   for(let i=HOUSE_LIST.length-1;i>=0;i--)if(Math.hypot(HOUSE_LIST[i].x-HOME.x,HOUSE_LIST[i].z-HOME.z)<20)HOUSE_LIST.splice(i,1);
-  buildHouses(HOUSE_LIST);JOB_YARDS.push(...HOUSE_LIST.filter(h=>h.front>5));
+  buildHouses(HOUSE_LIST);ROBH_SRC.push(...HOUSE_LIST);JOB_YARDS.push(...HOUSE_LIST.filter(h=>h.front>5));
   // ---- Sable Flats: a rough outskirts district under the Beltway: worn streets, strip mall, gas station, motel, warehouses, junkyard, trailer park, construction site ----
   {const SF=SFLATS,R=(a,b)=>rand(a,b);
    const worn=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#3e4045';g.fillRect(0,0,w,h);for(let i=0;i<2600;i++){const v=50+Math.random()*30|0;g.fillStyle=`rgb(${v},${v},${v+3})`;g.fillRect(Math.random()*w,Math.random()*h,2,2);}
@@ -1830,6 +1830,7 @@ function shopAction(){
         if(d<bd+0.3){bd=d;best={key:'F',label:p.isDoor?'Smash the locked door':'Smash the window',act:()=>{p.hp--;thud(0.25);S.shake=Math.max(S.shake,0.15);if(p.hp<=0)breakPane(s,p);else toast('The glass cracks');}};}}}
   }
   for(const a of PUB_ACTS){const d=Math.hypot(a.x-player.x,a.z-player.z);if(d<1.8&&Math.abs(a.y-player.y)<1.6&&d<bd){bd=d;best={key:'E',label:typeof a.label==='function'?a.label():a.label,act:a.act};}}
+  {const h=hrAction();if(h&&h.dist<bd+0.2)best=h;}
   return best;
 }
 function updateShops(dt){
@@ -2729,7 +2730,7 @@ function jump(){if(player.knockT>0||S.deadT>0)return;{const rf=roofAt(player.x,p
 function punch(){
   if(player.inCar||player.inAir||player.punchT>0||S.deadT>0)return;player.punchT=0.35;
   const sa=shopAction();if(sa&&sa.key==='F'){sa.act();return;}
-  if(mpPunch())return;
+  if(mpPunch()||hrPunch())return;
   const fx=Math.sin(player.h),fz=Math.cos(player.h);
   for(const p of peds){if(p.dead||p.state==='down'||p.state==='getup')continue;const dx=p.x-player.x,dz=p.z-player.z;const a=dx*fx+dz*fz;
     if(a>0&&a<1.9&&Math.abs(dx*fz-dz*fx)<0.9){const r=hurtPed(p,rand(22,34),fx*3.5,fz*3.5,true,Math.random()<0.3);thud(0.3);if(r!=='dead'&&Math.random()<0.5)say(p,pick(['Ow!','What the—','Hey!']));if(r!=='stagger'&&Math.random()<0.4)dropCash(p.x+fx,p.z+fz,randi(1,6)*10);break;}}
@@ -3294,7 +3295,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(S.stars>0?dt*2.2:dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -4242,6 +4243,97 @@ function updateLobby(dt){const A=LOBBY.anim;
     if(d<2.8&&p.said<=0){p.said=9;say(p,p.role==='guard'?(S.stars>0?pick(["Hey! You can't be in here!","Security! We've got a problem!"]):pick(['Have a nice day.','Elevators are that way.','Sign in at the desk, please.'])):p.role==='desk'?pick(['Hi! Can I help you?','Are you here for a meeting?']):pick(['Excuse me.','Nice blazer.','Are you lost?','Oh, sorry!','Is this the 40th floor?']));}
     if(p.role==='guard'&&S.stars>0&&d<6&&p.said>7)p.face=Math.atan2(dx,dz);
     if(p.av){avPlay(p.av,moving?'walk':'idle',0.3);p.av.mixer.update(dt);}else if(p.h){animHuman(p.h,moving?clock*7:0,moving?1:0,false);}}}
+
+// ---------- house break-ins: every house has a front door you can break into; families live inside and react ----------
+var HR={doors:null,grid:new Map(),room:null,cur:null,Y:-340,res:[],pool:null,fpool:null,loot:[],crack:null,t:0};
+function hrRand(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+function hrBuildDoors(){HR.doors=[];const add=(x,z,yaw,d)=>{if(Math.hypot(x-HOME.x,z-HOME.z)<20)return;const s=Math.sin(yaw),c=Math.cos(yaw);const dx=x+s*(d/2+0.07),dz=z+c*(d/2+0.07);
+    const door={x:dx,z:dz,nx:s,nz:c,yaw,seed:(Math.round(x*7)*73856093^Math.round(z*7)*19349663)>>>0,taken:{}};HR.doors.push(door);const k=Math.floor(dx/32)+','+Math.floor(dz/32);let a=HR.grid.get(k);if(!a)HR.grid.set(k,a=[]);a.push(door);};
+  for(const L of (SPRAWL.lots||[]))if(L.k==='house')add(L.x,L.z,L.yaw,L.d);
+  for(const H of ROBH_SRC)add(H.x,H.z,H.yaw,H.d);}
+function hrDoorNear(x,z,r){if(!HR.doors)hrBuildDoors();const cx=Math.floor(x/32),cz=Math.floor(z/32);let best=null,bd=r;
+  for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const a=HR.grid.get((cx+i)+','+(cz+j));if(!a)continue;for(const d of a){const e=Math.hypot(d.x+d.nx*0.8-x,d.z+d.nz*0.8-z);if(e<bd){bd=e;best=d;}}}return best?{door:best,dist:bd}:null;}
+// the interior: living room + TV, kitchen, bedroom with a safe, a study corner. Walls face inward so the camera can see in from outside them.
+function hrRoom(){if(HR.room)return;const Y=HR.Y,g=new THREE.Group();g.position.set(0,Y,0);g.visible=false;scene.add(g);HR.room=g;const L=c=>new THREE.MeshLambertMaterial({color:c});
+  const W=9,D=6,H=3.3;const wood=canvasTex(256,256,(c,w,h)=>{for(let y=0;y<h;y+=16){c.fillStyle=`rgb(${140+Math.random()*30|0},${98+Math.random()*20|0},${60+Math.random()*15|0})`;c.fillRect(0,y,w,15);c.fillStyle='rgba(0,0,0,0.25)';c.fillRect(0,y+15,w,1);}});wood.wrapS=wood.wrapT=THREE.RepeatWrapping;wood.repeat.set(5,3);
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(W*2,D*2),new THREE.MeshLambertMaterial({map:wood}));fl.rotation.x=-Math.PI/2;g.add(fl);
+  const wallM=L(0xeee6d8),plane=(w,h,x,y,z,ry,m)=>{const p=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m||wallM);p.position.set(x,y,z);p.rotation.y=ry;g.add(p);return p;};
+  plane(W*2,H,0,H/2,-D,0);plane(W*2,H,0,H/2,D,Math.PI);plane(D*2,H,-W,H/2,0,Math.PI/2);plane(D*2,H,W,H/2,0,-Math.PI/2);
+  const ceil=new THREE.Mesh(new THREE.PlaneGeometry(W*2,D*2),L(0xf6f3ee));ceil.rotation.x=Math.PI/2;ceil.position.y=H;g.add(ceil);
+  const box=(w,h,d,x,y,z,m)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof m==='number'?L(m):m);b.position.set(x,y,z);g.add(b);return b;};
+  box(0.15,H,6,2.5,H/2,-3,0xe2d9c8);box(0.15,H,3.2,2.5,H/2,4.4,0xe2d9c8); // bedroom/study partition with a doorway
+  box(1.3,2.2,0.08,0,1.1,D-0.05,0x6b4423);box(0.12,0.12,0.12,0.45,1.05,D-0.12,0xd4af37); // front door
+  for(const [x,z] of [[-5,-2],[5,-2],[-5,3],[5,3]])plane(1.6,0.5,x,H-0.02,z,0,new THREE.MeshBasicMaterial({color:0xfff2d6})).rotation.x=Math.PI/2;
+  // living room
+  box(3.2,0.5,1,-4.5,0.25,3.6,0x445566);box(3.2,0.7,0.25,-4.5,0.75,4.1,0x445566);box(1,0.5,1.8,-6.6,0.25,3.2,0x445566);const rug=new THREE.Mesh(new THREE.PlaneGeometry(3.4,2.2),L(0x9c4a2c));rug.rotation.x=-Math.PI/2;rug.position.set(-4.5,0.01,2.2);g.add(rug);
+  box(1.4,0.06,0.7,-4.5,0.42,2.2,0x6b4a2a);box(2.4,0.55,0.5,-4.5,0.28,0.5,0x2b2b2b);
+  // kitchen
+  box(6,0.95,0.7,-5.5,0.48,-D+0.4,0xe8e4dc);box(6.1,0.06,0.75,-5.5,0.98,-D+0.4,0x333333);box(0.9,2,0.8,-8.4,1,-D+0.5,0xd0d0d0);box(1.6,0.06,1,-5,0.78,-2.6,0x8a5a2a);for(const [x,z] of [[-5.8,-2.6],[-4.2,-2.6]])box(0.45,0.9,0.45,x,0.45,z,0x6b4a2a);
+  // bedroom
+  box(2.2,0.45,2.4,6.2,0.3,-3.9,0x6b4a2a);box(2.1,0.25,2.3,6.2,0.6,-3.9,0xf2f2f2);box(2.1,0.12,1.4,6.2,0.78,-3.4,0x1d3557);box(0.6,0.55,0.45,4.6,0.28,-5.4,0x6b4a2a);box(1.6,0.9,0.5,8.5,0.45,-0.9,0x8a6a4a);
+  // study
+  box(1.8,0.06,0.8,6.8,0.8,4.6,0x6b4a2a);box(0.5,0.9,0.5,6.8,0.45,3.7,0x222222);box(0.8,2,0.35,8.6,1,2.6,0x7a5232);
+  // loot (shown per house)
+  const tvM=new THREE.MeshLambertMaterial({color:0x111111,emissive:0x3a6ea5,emissiveIntensity:0.5});
+  HR.loot=[{k:'tv',label:'Steal the TV',x:-4.5,z:0.9,v:[150,400],noise:9,m:[box(2,1.1,0.08,-4.5,1.15,0.5,tvM)],p:1},
+    {k:'cash',label:'Grab the cash jar',x:-6.5,z:-4.9,v:[20,150],noise:2,m:[box(0.25,0.3,0.25,-6.5,1.15,-D+0.4,0x9fd8c8)],p:0.9},
+    {k:'jewel',label:'Take the jewelry box',x:8.1,z:-0.9,v:[200,800],noise:3,m:[box(0.45,0.22,0.3,8.5,1.02,-0.9,0x7a1f3d)],p:0.8},
+    {k:'laptop',label:'Take the laptop',x:6.8,z:4.0,v:[100,300],noise:2,m:[box(0.55,0.03,0.4,6.8,0.85,4.6,0x9aa0a6),box(0.55,0.36,0.03,6.8,1.02,4.82,0x2a2a2a)],p:0.7},
+    {k:'safe',label:'Crack the safe',x:3.4,z:-4.8,v:[500,2000],noise:7,m:[box(0.8,0.9,0.7,3.4,0.45,-5.4,0x3a3d40)],p:0.35,slow:3}];
+  FLOOR_PLATES.push({x0:-W+0.3,x1:W-0.3,z0:-D+0.3,z1:D-0.3,y:Y,s:{ax:0,az:0,ay:Y,bx:1,bz:0,by:Y,ux:1,uz:0,L:1,hw:1,hi:-1}});}
+const HR_SPOTS={tv:[-4.5,3.0,Math.PI],cook:[-5.5,-4.6,Math.PI],desk:[6.8,3.6,0],bed:[6.2,-3.05,0],kitchen:[-5,-1.7,Math.PI],hall:[0,0,0],bedroom:[5.5,-1.5,0]};
+function hrMakePools(){if(!HR.fpool){HR.fpool=[0,1,2].map(()=>{const h=makeHuman(randomLook());h.g.visible=false;scene.add(h.g);return h;});}
+  if(!HR.pool&&AV.ready){HR.pool=[];for(const n of Object.keys(AV.models))if(n!=='josh'){const a=avMake(n,1.72);if(a){a.s0=a.obj.scale.x;HR.pool.push(a);}}}}
+function hrEnter(d){if(HR.cur)return;hrRoom();hrMakePools();glassSound&&glassSound();thud(0.4);
+  fadeTo(()=>{HR.cur=d;HR.room.visible=true;player.x=0;player.z=D_IN;player.y=HR.Y;player.vy=0;player.h=Math.PI;HR.crack=null;
+    const R=hrRand(d.seed),hour=S.time*24,night=hour<6||hour>=22;
+    for(const l of HR.loot){l.here=R()<l.p&&!d.taken[l.k];l.m.forEach(m=>m.visible=l.here);}
+    for(const r of HR.res){r.obj.visible=false;r.obj.rotation.set(0,0,0);}HR.res=[];
+    const n=1+Math.floor(R()*3),acts=night?['bed','bed','tv']:['tv','cook','desk','kitchen','bedroom'];const avs=HR.pool&&HR.pool.length?HR.pool.slice().sort(()=>R()-0.5):null;
+    for(let i=0;i<n;i++){const kid=i===2||(n>1&&R()<0.15&&i>0),act=night?(kid?'tv':'bed'):acts[Math.floor(R()*acts.length)],sp=HR_SPOTS[act];
+      let obj,av=null,h=null;if(avs&&avs[i]){av=avs[i];obj=av.obj;obj.scale.setScalar(av.s0*(kid?1.3:1.62+R()*0.2)/1.72);}else{h=HR.fpool[i];obj=h.g;obj.scale.setScalar(kid?0.75:1);}
+      const sofa=night&&act==='tv',x=sofa?-5.3:sp[0]+(act==='bed'?(i?0.45:-0.45):R()*0.6-0.3),z=sofa?3.5:sp[1];obj.rotation.order='YXZ';
+      HR.res.push({obj,av,h,kid,act,x,y:HR.Y,z,face:sp[2],mode:night&&act==='bed'||night&&kid?'sleep':'calm',t:0,hp:kid?40:70,said:0,wake:0,cd:0,tx:x,tz:z,home:[x,z]});}
+    toast(night?'Everyone is asleep · be quiet':'Someone is home · grab what you can','bad');});}
+const D_IN=5.0;
+function hrExit(){if(!HR.cur)return;const d=HR.cur;fadeTo(()=>{HR.cur=null;HR.room.visible=false;for(const r of HR.res)r.obj.visible=false;S.floor=null;player.x=d.x+d.nx*1.6;player.z=d.z+d.nz*1.6;player.y=0.25;player.vy=0;player.h=d.yaw;
+  const left=HR.loot.filter(l=>l.here&&!d.taken[l.k]).length;if(left===0)d.robbedAt=clock;});}
+function hrNoise(x,z,r){for(const p of HR.res){if(p.mode==='out')continue;const d=Math.hypot(p.x-x,p.z-z);if(d<r&&(p.mode==='sleep'||p.mode==='calm')){p.mode='alert';p.t=0;}}}
+function hrTake(l){const d=HR.cur;if(!d||d.taken[l.k]||!l.here)return;
+  if(l.slow){if(!HR.crack||HR.crack.l!==l){HR.crack={l,t:0};toast('Cracking the safe... stay close');hrNoise(l.x,l.z,l.noise);}return;}
+  d.taken[l.k]=true;l.m.forEach(m=>m.visible=false);const amt=Math.round(randi(l.v[0],l.v[1])/10)*10;addMoney(amt);toast(l.label.replace(/^(Steal|Grab|Take|Crack) the /,'')+' · +$'+amt,'cash');thud(0.2);hrNoise(l.x,l.z,l.noise);
+  if(HR.res.some(p=>p.mode!=='sleep'&&p.mode!=='out'&&p.mode!=='calm'))addCrime(1,'Burglary');}
+function hrAction(){if(player.inCar||player.inAir||S.deadT>0)return null;
+  if(HR.cur){let best=null,bd=1.6;const px=player.x,pz=player.z;
+    if(Math.hypot(px,pz-D_IN-0.5)<bd){bd=Math.hypot(px,pz-D_IN-0.5);best={key:'E',label:'Leave the house',act:hrExit};}
+    for(const l of HR.loot){if(!l.here||HR.cur.taken[l.k])continue;const d=Math.hypot(l.x-px,l.z-pz);if(d<bd){bd=d;best={key:'E',label:HR.crack&&HR.crack.l===l?'Cracking... '+Math.round(HR.crack.t/l.slow*100)+'%':l.label,act:()=>hrTake(l)};}}
+    return best?Object.assign(best,{dist:bd}):null;}
+  if(player.y>2)return null;const n=hrDoorNear(player.x,player.z,1.7);if(!n)return null;const d=n.door;
+  return{key:'E',dist:n.dist,label:d.robbedAt&&clock-d.robbedAt<600?'Break in (already robbed)':'Break into the house',act:()=>hrEnter(d)};}
+function hrPunch(){if(!HR.cur)return false;const fx=Math.sin(player.h),fz=Math.cos(player.h);
+  for(const p of HR.res){if(p.mode==='out')continue;const dx=p.x-player.x,dz=p.z-player.z,a=dx*fx+dz*fz;if(a>0&&a<1.9&&Math.abs(dx*fz-dz*fx)<0.9){p.hp-=rand(22,34);thud(0.3);addCrime(1,'Assault');
+    if(p.hp<=0){p.mode='out';p.t=0;say(p,'Ugh...');}else{say(p,pick(['Ow!','Stop!','Please, take what you want!']));p.mode=p.kid||Math.random()<0.5?'hands':'fight';p.t=0;}
+    hrNoise(p.x,p.z,8);return true;}}return false;}
+function updateHouseRob(dt){if(!HR.cur||!HR.room)return;const W=8.6,D=5.6;S.insideShop={name:'Break-in · '+(HR.res.filter(p=>p.mode!=='out').length)+' home',cx:HR.cur.x,cz:HR.cur.z};
+  if(Math.abs(player.y-HR.Y)<3){player.x=clamp(player.x,-W,W);player.z=clamp(player.z,-D,D);if(player.x>2.3&&player.x<2.7&&(player.z<0||player.z>2.8))player.x=player.x<2.5?2.3:2.7;}
+  if(HR.crack){const l=HR.crack.l;if(Math.hypot(l.x-player.x,l.z-player.z)>1.8){HR.crack=null;toast('You stopped cracking the safe');}else{HR.crack.t+=dt;if(Math.random()<dt*2)thud(0.08);if(HR.crack.t>=l.slow){HR.crack=null;hrTakeDone(l);}}}
+  const night=S.time*24<6||S.time*24>=22;
+  for(const p of HR.res){p.obj.visible=true;p.t+=dt;p.said-=dt;p.cd-=dt;const dx=player.x-p.x,dz=player.z-p.z,d=Math.hypot(dx,dz);let moving=0,clip='idle';
+    const sees=d<9&&(Math.cos(Math.atan2(dx,dz)-p.face)>0.25||d<2.5);
+    if(p.mode==='sleep'){if(d<2.2){p.wake+=dt;if(p.wake>2.5){p.mode='alert';p.t=0;}}else p.wake=Math.max(0,p.wake-dt*0.5);}
+    else if(p.mode==='calm'){if(sees){p.mode='alert';p.t=0;}else if(p.act==='kitchen'||p.act==='bedroom'||p.act==='hall'){const tx=p.tx-p.x,tz=p.tz-p.z,td=Math.hypot(tx,tz);if(td<0.3){p.tx=clamp(p.home[0]+rand(-2.5,2.5),-8,8);p.tz=clamp(p.home[1]+rand(-1.5,1.5),-5,5);}else{p.x+=tx/td*1.1*dt;p.z+=tz/td*1.1*dt;p.face=Math.atan2(tx,tz);moving=1;}}}
+    else if(p.mode==='alert'){p.face=Math.atan2(dx,dz);if(p.said<=0){p.said=6;say(p,pick(['Who are you?!','Get out of my house!','What are you doing in here?!',"I'm calling the police!"]));}
+      if(p.t>0.8){const r=Math.random();p.mode=p.kid?'flee':r<0.45?'call':r<0.75?'fight':'hands';p.t=0;if(p.mode==='call')toast('The homeowner is calling 911 · stop them!','bad');}}
+    else if(p.mode==='call'){p.face=Math.atan2(dx,dz)+Math.PI;if(p.t>5){addCrime(2,'Home invasion');say(p,'Yes, police? Someone broke into my house!');p.mode='flee';p.t=0;}}
+    else if(p.mode==='fight'){p.face=Math.atan2(dx,dz);if(d>1.1){p.x+=dx/d*3.2*dt;p.z+=dz/d*3.2*dt;moving=2;}else if(p.cd<=0&&S.deadT<=0){p.cd=0.9;damagePlayer(7,'Beaten up by a homeowner');thud(0.3);if(p.said<=0){p.said=4;say(p,pick(['Get out!','Not in my house!','You picked the wrong house!']));}}}
+    else if(p.mode==='flee'){const ax=p.x-player.x,az=p.z-player.z,ad=Math.hypot(ax,az)||1;if(ad<6&&p.t<5){p.x=clamp(p.x+ax/ad*3.4*dt,-8.4,8.4);p.z=clamp(p.z+az/ad*3.4*dt,-5.4,5.4);p.face=Math.atan2(ax,az);moving=2;}else{p.mode='hands';p.t=0;}if(p.said<=0){p.said=5;say(p,pick(['Help!','Somebody help!','Mom!','Please don\'t hurt me!']));}}
+    else if(p.mode==='hands'){p.face=Math.atan2(dx,dz);if(p.said<=0&&d<4){p.said=7;say(p,pick(['Take whatever you want!','Please, just go!',"Don't hurt us!"]));}if(p.t>8&&!p.kid){p.mode='call';p.t=0;}}
+    p.obj.position.set(p.x,p.y+(p.mode==='sleep'?0.75:p.mode==='out'?0.08:0),p.z);
+    const lying=p.mode==='sleep'||p.mode==='out';p.obj.rotation.x=lying?-Math.PI/2:0;if(!lying){let df=p.face-p.obj.rotation.y;df=Math.atan2(Math.sin(df),Math.cos(df));p.obj.rotation.y+=df*Math.min(1,dt*8);}else if(p.mode==='sleep')p.obj.rotation.y=p.act==='tv'?-Math.PI/2:0;
+    if(p.av){avPlay(p.av,moving===2?'run':moving?'walk':'idle',0.25);p.av.mixer.update(dt);}
+    else if(p.h){if(p.mode==='hands'||p.mode==='call')poseHandsUp(p.h);else animHuman(p.h,moving?clock*(moving===2?11:7):0,moving?1:0,moving===2);}}}
+function hrTakeDone(l){const d=HR.cur;if(!d)return;d.taken[l.k]=true;l.m.forEach(m=>m.visible=false);const amt=Math.round(randi(l.v[0],l.v[1])/10)*10;addMoney(amt);toast('Safe cracked · +$'+amt,'cash');thud(0.3);hrNoise(l.x,l.z,l.noise);
+  if(HR.res.some(p=>p.mode!=='sleep'&&p.mode!=='out'&&p.mode!=='calm'))addCrime(1,'Burglary');}
 
 function start(){
   S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
