@@ -364,7 +364,7 @@ function deckAt(x,z,y,up,down){let best=null,bd=1e9;
     const h=s.ay+(s.by-s.ay)*clamp(t,0,1),dy=h-y;if(dy>up||dy<-down)continue;if(Math.abs(dy)<bd){bd=Math.abs(dy);best={h,s,lat,t};}}
   if(!best)for(const j of JOINTS){const dx=x-j.x,dz=z-j.z;if(dx*dx+dz*dz>j.r*j.r)continue;const dy=j.y-y;if(dy>up||dy<-down)continue;if(Math.abs(dy)<bd){bd=Math.abs(dy);best={h:j.y,s:j.s,lat:0,t:0};}}
   if(!best)for(const s of MOUNDS){const rx=x-s.ax,rz=z-s.az,t=(rx*s.ux+rz*s.uz)/s.L;if(t<0||t>1)continue;const lat=Math.abs(rx*s.uz-rz*s.ux);const hh=Math.max(0,s.ay+(s.by-s.ay)*t-0.25);if(lat<s.hw||lat>s.hw+hh*2)continue;const h=hh-(lat-s.hw)*0.5,dy=h-y;if(dy>up||dy<-down)continue;if(Math.abs(dy)<bd){bd=Math.abs(dy);best={h,s,lat,t,mound:true};}}
-  if(!best&&FLOOR_PLATES)for(const f of FLOOR_PLATES){if(x<f.x0||x>f.x1||z<f.z0||z>f.z1)continue;const dy=f.y-y;if(dy>up||dy<-down)continue;if(Math.abs(dy)<bd){bd=Math.abs(dy);best={h:f.y,s:f.s,lat:0,t:0};}}
+  if(!best&&FLOOR_PLATES){let rb=null;for(const f of FLOOR_PLATES){if(x<f.x0||x>f.x1||z<f.z0||z>f.z1)continue;const fy=f.ramp?f.ramp(x,z):f.y,dy=fy-y;if(dy>up||(dy<-down&&!(f.catch&&f.catch(y))))continue;if(f.ramp){if(!rb||fy>rb.h)rb={h:fy,s:f.s,lat:0,t:0};continue;}if(Math.abs(dy)<bd){bd=Math.abs(dy);best={h:fy,s:f.s,lat:0,t:0};}}if(rb&&(!best||rb.h>=best.h-0.01))best=rb;}
   return best;}
 function underHwy(x,z){for(const s of SEGS){const rx=x-s.ax,rz=z-s.az,t=(rx*s.ux+rz*s.uz)/s.L;if(t<0||t>1)continue;if(Math.abs(rx*s.uz-rz*s.ux)<s.hw+3&&s.ay+(s.by-s.ay)*t>2)return true;}return false;}
 function railPush(p,r){let need=null,best=1e9;
@@ -3088,6 +3088,7 @@ const tmpZ=new THREE.Color(),tmpH=new THREE.Color();
 const WEATHERS={clear:{cloud:0.3,rain:0,label:'Clear'},overcast:{cloud:0.74,rain:0,label:'Overcast'},rain:{cloud:0.97,rain:1,label:'Rain'}};
 const WSEQ=['clear','clear','overcast','clear','rain','clear','clear','overcast'];let wIdx=0;
 function updateWeather(dt){
+  if(MP.clockOff!=null){const wi=Math.floor(mpWorldSec()/190)%WSEQ.length;if(GFX.weather!==WSEQ[wi]){wIdx=wi;GFX.weather=WSEQ[wi];if(GFX.weather==='rain')toast('It’s starting to rain');}GFX.weatherT=999;}
   GFX.weatherT-=dt;if(GFX.weatherT<=0){wIdx=(wIdx+1)%WSEQ.length;GFX.weather=WSEQ[wIdx];GFX.weatherT=rand(140,230);if(GFX.weather==='rain')toast('It’s starting to rain');}
   const w=WEATHERS[GFX.weather];
   GFX.cloud+=(w.cloud-GFX.cloud)*(1-Math.exp(-dt/12));
@@ -3110,7 +3111,7 @@ function updateRain(dt){
   rainGeo.attributes.position.needsUpdate=true;
 }
 function updateSky(dt){
-  S.time=(S.time+dt/DAY)%1;updateWeather(dt);
+  S.time=MP.clockOff!=null?(mpWorldSec()/DAY+0.3)%1:(S.time+dt/DAY)%1;updateWeather(dt);
   const a=(S.time-0.25)*Math.PI*2,el=Math.sin(a);
   const d=clamp(el*3+0.25,0,1),dusk=Math.exp(-Math.pow(el/0.3,2));night=1-d;
   const ov=clamp((GFX.cloud-0.3)/0.67,0,1),rn=GFX.rain;
@@ -3361,17 +3362,28 @@ function updateFireflies(dt){const w=SWAMPS.reduce((b,q)=>Math.hypot(camera.posi
 // ---------- online versus: see and fight other people playing this page right now (room capability) ----------
 const MP={room:null,user:null,ready:false,myPeer:null,remotes:new Map(),hitId:0,deadId:0,kills:0,seenHit:{},seenDead:{},seenJack:{},seenBoom:{},jackId:0,boomId:0,lastCar:null,t:0,names:{}};
 const MP_COLORS=[0xff3b6b,0x3b9bff,0xffc23b,0x4be38a,0xb06bff,0xff8a3b];
+function mpWorldSec(){return(Date.now()+(MP.clockOff||0))/1000;}
 function mpColorFor(peer){let h=0;for(let i=0;i<peer.length;i++)h=(h*31+peer.charCodeAt(i))>>>0;return MP_COLORS[h%MP_COLORS.length];}
 function mpLabel(text,color){const tex=canvasTex(256,64,(g,w,h)=>{g.fillStyle='rgba(0,0,0,0.55)';g.fillRect(8,10,w-16,h-20);g.fillStyle='#'+color.toString(16).padStart(6,'0');g.fillRect(8,10,10,h-20);
     g.fillStyle='#fff';g.font='bold 28px "Segoe UI",Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(String(text).slice(0,16),w/2+5,h/2);});
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));s.scale.set(2.6,0.65,1);s.renderOrder=6;scene.add(s);return s;}
 function mpLookOf(h){const o=h.look||{};const k=['female','outfit','skin','hair','eyes','shirt','pants','shoes','jacket','dress','longSleeve','hairStyle','beard','mustache','glasses','hat','hatColor','scale'];const r={};for(const n of k)if(o[n]!==undefined)r[n]=o[n];return r;}
-function mpRemove(r){scene.remove(r.h.g);if(r.car)scene.remove(r.car.mesh);if(r.label)scene.remove(r.label);}
+function mpRemove(r){scene.remove(r.h.g);if(r.car)scene.remove(r.car.mesh);if(r.label)scene.remove(r.label);if(r.cp){r.cp.cars.forEach(c=>scene.remove(c.mesh));r.cp.peds.forEach(h=>scene.remove(h.g));if(r.cp.heli)scene.remove(r.cp.heli);}}
+function mpCops(r,dt){const d=r.cpd,k=1-Math.exp(-8*dt);if(!d&&!r.cp)return;if(!r.cp)r.cp={cars:[],peds:[],heli:null,ph:0};const P=r.cp,cs=(d&&d.c)||[],ps=(d&&d.p)||[];
+  while(P.cars.length<cs.length){const c=spawnCar(cs[P.cars.length][0],cs[P.cars.length][2],cs[P.cars.length][3],'parked',true);cars.splice(cars.indexOf(c),1);if(KN&&KN.ready&&KN.cars&&KN.cars.police)knCar(c,'police');c.mesh.visible=false;c.x=c.mesh.position.x;c.z=c.mesh.position.z;c.h=cs[P.cars.length][3];P.cars.push(c);}
+  const ph=Math.floor(clock*6)%2;P.cars.forEach((c,i)=>{const q=cs[i];if(!q){c.mesh.visible=false;c.fresh=true;return;}if(c.fresh||!c.mesh.visible||Math.hypot(q[0]-c.x,q[2]-c.z)>30){c.x=q[0];c.z=q[2];c.y=q[1];c.h=q[3];c.fresh=false;}
+    c.x+=(q[0]-c.x)*k;c.z+=(q[2]-c.z)*k;c.y=(c.y||0)+(q[1]-(c.y||0))*k;c.h+=angDiff(c.h,q[3])*k;c.mesh.position.set(c.x,c.y,c.z);c.mesh.rotation.y=c.h;c.mesh.visible=true;if(c.sirR){c.sirR.emissiveIntensity=ph?2:0.1;c.sirB.emissiveIntensity=ph?0.1:2;}});
+  while(P.peds.length<ps.length){const h=makeHuman(lookFor('cop'));h.g.visible=false;scene.add(h.g);h.x=ps[P.peds.length][0];h.z=ps[P.peds.length][2];h.ph=0;P.peds.push(h);}
+  P.peds.forEach((h,i)=>{const q=ps[i];if(!q){h.g.visible=false;return;}if(!h.g.visible||Math.hypot(q[0]-h.x,q[2]-h.z)>20){h.x=q[0];h.z=q[2];}const ox=h.x,oz=h.z;h.x+=(q[0]-h.x)*k;h.z+=(q[2]-h.z)*k;const sp=Math.hypot(h.x-ox,h.z-oz)/Math.max(dt,0.001);h.ph+=dt*(4+sp*1.6);
+    h.g.position.set(h.x,q[1],h.z);h.g.rotation.y+=angDiff(h.g.rotation.y,q[3])*k;h.g.visible=true;animHuman(h,h.ph,Math.min(1.3,sp/4),sp>4);});
+  const he=d&&d.h;if(he&&!P.heli&&GX&&GX.heli){P.heli=GX.heli.clone();const rm=[];P.heli.traverse(o=>{if(o.isLight)rm.push(o);});rm.forEach(o=>o.parent&&o.parent.remove(o));scene.add(P.heli);P.heli.position.set(he[0],he[1],he[2]);}
+  if(P.heli){if(he){P.heli.visible=true;P.heli.position.x+=(he[0]-P.heli.position.x)*k;P.heli.position.y+=(he[1]-P.heli.position.y)*k;P.heli.position.z+=(he[2]-P.heli.position.z)*k;P.heli.rotation.y+=angDiff(P.heli.rotation.y,he[3])*k;P.heli.children.forEach((o,i)=>{if(/rotor/i.test(o.name))o.rotation.y+=dt*30;});}else P.heli.visible=false;}
+  if(!d&&P.cars.every(c=>!c.mesh.visible)&&P.peds.every(h=>!h.g.visible)&&(!P.heli||!P.heli.visible)){}}
 function mpEnsure(p){let r=MP.remotes.get(p.peer);const pr=p.presence||{};if(!pr.mp)return null;
   if(!r){const look=Object.assign(pr.look||{},{umbrella:false,phone:false,bag:null});const h=makeHuman(look);const col=mpColorFor(p.peer);
     r={peer:p.peer,by:p.by,h,car:null,carMode:null,label:mpLabel(MP.names[p.by]||pr.nm||'Player',col),nm:typeof pr.nm==='string'?pr.nm.slice(0,16):'',col,x:pr.mp.x,y:pr.mp.y,z:pr.mp.z,hd:pr.mp.h,phase:0,cd:0,st:pr.mp};
     MP.remotes.set(p.peer,r);mpNames();}
-  r.st=pr.mp;return r;}
+  r.st=pr.mp;r.cpd=pr.cp||null;return r;}
 async function mpNames(){if(!MP.user||!MP.user.profiles)return;const ids=[...MP.remotes.values()].map(r=>r.by).filter(Boolean);if(!ids.length)return;
   try{const ps=await MP.user.profiles(ids);for(const r of MP.remotes.values()){const n=r.by&&ps[r.by]&&ps[r.by].name;if(n&&MP.names[r.by]!==n){MP.names[r.by]=n;scene.remove(r.label);r.label=mpLabel(n,r.col);}}mpPanel();}catch(e){}}
 function mpSync(peers){
@@ -3413,9 +3425,13 @@ function mpCarHits(c){if(!MP.ready)return;const sp=Math.hypot(c.vx,c.vz),fx=Math
 function mpTick(dt){if(!MP.ready)return;
   if(player.inCar)MP.lastCar=player.inCar;MP.t+=dt;if(MP.t>0.05){MP.t=0;const c=player.inCar,a=player.inAir,src=c||a||player;
     const st={x:+src.x.toFixed(2),y:+((src.y)||0).toFixed(2),z:+src.z.toFixed(2),h:+((c?c.h:a?a.yaw:player.h)||0).toFixed(3),m:c?(c.boat?'b':'c'):a?'a':'f',
-      s:+(c?Math.hypot(c.vx,c.vz):a?a.v:Math.hypot(player.vx,player.vz)).toFixed(1),hp:Math.max(0,Math.round(S.hp)),k:MP.kills,p:player.punchT>0?1:0,w:player.swim?1:0,kn:(player.knockT>0||S.deadT>0)?1:0,kv:c&&c.kn?c.kn:0,
+      s:+(c?Math.hypot(c.vx,c.vz):a?a.v:Math.hypot(player.vx,player.vz)).toFixed(1),hp:Math.max(0,Math.round(S.hp)),k:MP.kills,ws:S.stars|0,p:player.punchT>0?1:0,w:player.swim?1:0,kn:(player.knockT>0||S.deadT>0)?1:0,kv:c&&c.kn?c.kn:0,
       cc:c&&c.body&&c.body.material&&c.body.material.color?c.body.material.color.getHex():0};
-    const patch={mp:st};if(!MP.lookSent){patch.look=mpLookOf(player.human);patch.nm=MP.nick;MP.lookSent=true;}
+    const patch={mp:st};MP.ct=(MP.ct||0)+1;if(MP.ct%5===0){if(S.stars>0){const t=src,r1=v=>Math.round(v*10)/10;
+      const cc=cars.filter(c=>c.mode==='police'&&c.chase&&Math.abs(c.x-t.x)+Math.abs(c.z-t.z)<400).sort((a,b)=>Math.hypot(a.x-t.x,a.z-t.z)-Math.hypot(b.x-t.x,b.z-t.z)).slice(0,6).map(c=>[r1(c.x),r1(c.y||0),r1(c.z),Math.round(c.h*100)/100]);
+      const hm=GX&&GX.hp&&GX.hp.on&&GX.heli?GX.heli:null,he=hm?[r1(hm.position.x),r1(hm.position.y),r1(hm.position.z),Math.round(hm.rotation.y*100)/100]:0;
+      const cp=peds.filter(p=>p.type==='cop'&&p.state==='copchase'&&!p.dead&&Math.abs(p.x-t.x)+Math.abs(p.z-t.z)<150).slice(0,4).map(p=>[r1(p.x),r1(p.y||0),r1(p.z),Math.round(p.h.g.rotation.y*100)/100]);
+      patch.cp={c:cc,h:he,p:cp};MP.cpSent=true;}else if(MP.cpSent){patch.cp=null;MP.cpSent=false;}}if(!MP.lookSent){patch.look=mpLookOf(player.human);patch.nm=MP.nick;MP.lookSent=true;}
     MP.room.presence(patch).catch(()=>{});}
   const now=performance.now()/1000;for(const r of MP.remotes.values()){const s=r.st;r.cd=Math.max(0,r.cd-dt);const k=1-Math.exp(-14*dt);
     if(s!==r.lastSt){const p=r.lastSt,gap=now-(r.rt||0);if(p&&gap>0.015&&gap<0.6&&Math.abs(s.x-p.x)+Math.abs(s.z-p.z)<40){const b=0.5;r.vx=lerp(r.vx||0,(s.x-p.x)/gap,b);r.vy=lerp(r.vy||0,(s.y-p.y)/gap,b);r.vz=lerp(r.vz||0,(s.z-p.z)/gap,b);if(Math.hypot(r.vx,r.vz)>90)r.vx=r.vy=r.vz=0;}else{r.vx=r.vy=r.vz=0;}r.lastSt=s;r.rt=now;}
@@ -3430,7 +3446,8 @@ function mpTick(dt){if(!MP.ready)return;
     else{if(r.car)r.car.mesh.visible=false;const hg=r.h.g;hg.visible=s.m!=='a';hg.position.set(r.x,r.y,r.z);hg.rotation.set(s.kn?-1.2:(s.w?-1.1:0),r.hd,0);
       r.phase+=(s.s<3?s.s*3.6:6+s.s*0.65)*dt;animHuman(r.h,r.phase,Math.min(1.3,s.s/4),s.s>6);
       if(s.p){r.h.shR.rotation.set(-1.6,0,0.1);r.h.elR.rotation.x=-0.1;}}
-    r.label.position.set(r.x,r.y+(inVeh?3.0:2.45),r.z);r.label.visible=true;}
+    r.label.position.set(r.x,r.y+(inVeh?3.0:2.45),r.z);r.label.visible=true;mpCops(r,dt);
+    const wsn=(s.ws|0);if(r.wsShown!==wsn){r.wsShown=wsn;scene.remove(r.label);r.label=mpLabel((MP.names[r.by]||r.nm||'Player')+(wsn?' '+'★'.repeat(Math.min(5,wsn)):''),wsn?0xff3b3b:r.col);if(wsn>=2&&r.wsToast!==wsn){r.wsToast=wsn;toast((MP.names[r.by]||r.nm||'A player')+' is wanted · '+wsn+' stars','bad');}}}
   MP.pt=(MP.pt||0)+dt;if(MP.pt>0.5){MP.pt=0;mpPanel();}}
 function wsRoom(){return new Promise(res=>{let ws=null,done=false,tries=0;const fin=v=>{if(!done){done=true;res(v);}};
   const st={me:null,handlers:[],pending:{},timer:0,last:0},room={
@@ -3440,8 +3457,8 @@ function wsRoom(){return new Promise(res=>{let ws=null,done=false,tries=0;const 
   let prev=new Map();const emit=(joined,left,updated)=>{const peers=[...prev.values()];for(const h of st.handlers)h({peers,joined,left,updated});};
   const connect=()=>{try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');}catch(e){fin(null);return;}
     ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(_){return;}
-      if(m.t==='hello'){st.me=m.id;tries=0;MP.lookSent=false;fin(room);}
-      else if(m.t==='pong'){const r=performance.now()-(+m.c||0);if(r>=0&&r<10000)MP.ping=MP.ping?MP.ping*0.7+r*0.3:r;}
+      if(m.t==='hello'){st.me=m.id;tries=0;MP.lookSent=false;if(typeof m.now==='number'&&MP.clockOff==null){MP.clockOff=m.now-Date.now();toast('Online · everyone shares the same time of day');}fin(room);}
+      else if(m.t==='pong'){const r=performance.now()-(+m.c||0);if(r>=0&&r<10000){MP.ping=MP.ping?MP.ping*0.7+r*0.3:r;if(typeof m.s==='number'&&(MP.bestRtt==null||r<=MP.bestRtt*1.3)){MP.bestRtt=MP.bestRtt==null?r:Math.min(MP.bestRtt,r);MP.clockOff=m.s+r/2-Date.now();}}}
       else if(m.t==='u'&&m.d&&typeof m.d==='object'){const p=prev.get(String(m.id));if(!p)return;const pr=Object.assign({},p.presence);for(const k in m.d){if(m.d[k]===null)delete pr[k];else pr[k]=m.d[k];}p.presence=pr;emit([],[],[p]);}
       else if(m.t==='peers'&&Array.isArray(m.peers)){const peers=m.peers.map(p=>({peer:String(p.id),by:null,isMe:p.id===st.me,sameTab:p.id===st.me,kind:'viewer',guest:false,presence:p.p||{}}));
         const cur=new Map(peers.map(p=>[p.peer,p])),joined=peers.filter(p=>!prev.has(p.peer)),left=[...prev.values()].filter(p=>!cur.has(p.peer));prev=cur;emit(joined,left,peers);}};
@@ -4245,7 +4262,10 @@ function updateLobby(dt){const A=LOBBY.anim;
     if(p.av){avPlay(p.av,moving?'walk':'idle',0.3);p.av.mixer.update(dt);}else if(p.h){animHuman(p.h,moving?clock*7:0,moving?1:0,false);}}}
 
 // ---------- house break-ins: every house has a front door you can break into; families live inside and react ----------
-var HR={doors:null,grid:new Map(),room:null,cur:null,Y:-340,res:[],pool:null,fpool:null,loot:[],crack:null,t:0};
+// two floors joined by a staircase you walk up, windows on every outside wall
+var HR={doors:null,grid:new Map(),room:null,up:null,cur:null,Y:-340,res:[],pool:null,fpool:null,loot:[],crack:null,t:0,winM:null,px:0,pz:0};
+const HR_UP=3.4,HR_ST={x0:0.4,x1:1.6,zb:3.5,zt:-1.5}; // stairs: bottom at z=3.5, top at z=-1.5, rising to the upper floor
+function hrRampH(z){return HR_UP*clamp((HR_ST.zb-z)/(HR_ST.zb-HR_ST.zt),0,1);}
 function hrRand(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
 function hrBuildDoors(){HR.doors=[];const add=(x,z,yaw,d)=>{if(Math.hypot(x-HOME.x,z-HOME.z)<20)return;const s=Math.sin(yaw),c=Math.cos(yaw);const dx=x+s*(d/2+0.07),dz=z+c*(d/2+0.07);
     const door={x:dx,z:dz,nx:s,nz:c,yaw,seed:(Math.round(x*7)*73856093^Math.round(z*7)*19349663)>>>0,taken:{}};HR.doors.push(door);const k=Math.floor(dx/32)+','+Math.floor(dz/32);let a=HR.grid.get(k);if(!a)HR.grid.set(k,a=[]);a.push(door);};
@@ -4253,87 +4273,133 @@ function hrBuildDoors(){HR.doors=[];const add=(x,z,yaw,d)=>{if(Math.hypot(x-HOME
   for(const H of ROBH_SRC)add(H.x,H.z,H.yaw,H.d);}
 function hrDoorNear(x,z,r){if(!HR.doors)hrBuildDoors();const cx=Math.floor(x/32),cz=Math.floor(z/32);let best=null,bd=r;
   for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const a=HR.grid.get((cx+i)+','+(cz+j));if(!a)continue;for(const d of a){const e=Math.hypot(d.x+d.nx*0.8-x,d.z+d.nz*0.8-z);if(e<bd){bd=e;best=d;}}}return best?{door:best,dist:bd}:null;}
-// the interior: living room + TV, kitchen, bedroom with a safe, a study corner. Walls face inward so the camera can see in from outside them.
-function hrRoom(){if(HR.room)return;const Y=HR.Y,g=new THREE.Group();g.position.set(0,Y,0);g.visible=false;scene.add(g);HR.room=g;const L=c=>new THREE.MeshLambertMaterial({color:c});
-  const W=9,D=6,H=3.3;const wood=canvasTex(256,256,(c,w,h)=>{for(let y=0;y<h;y+=16){c.fillStyle=`rgb(${140+Math.random()*30|0},${98+Math.random()*20|0},${60+Math.random()*15|0})`;c.fillRect(0,y,w,15);c.fillStyle='rgba(0,0,0,0.25)';c.fillRect(0,y+15,w,1);}});wood.wrapS=wood.wrapT=THREE.RepeatWrapping;wood.repeat.set(5,3);
-  const fl=new THREE.Mesh(new THREE.PlaneGeometry(W*2,D*2),new THREE.MeshLambertMaterial({map:wood}));fl.rotation.x=-Math.PI/2;g.add(fl);
-  const wallM=L(0xeee6d8),plane=(w,h,x,y,z,ry,m)=>{const p=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m||wallM);p.position.set(x,y,z);p.rotation.y=ry;g.add(p);return p;};
-  plane(W*2,H,0,H/2,-D,0);plane(W*2,H,0,H/2,D,Math.PI);plane(D*2,H,-W,H/2,0,Math.PI/2);plane(D*2,H,W,H/2,0,-Math.PI/2);
-  const ceil=new THREE.Mesh(new THREE.PlaneGeometry(W*2,D*2),L(0xf6f3ee));ceil.rotation.x=Math.PI/2;ceil.position.y=H;g.add(ceil);
-  const box=(w,h,d,x,y,z,m)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof m==='number'?L(m):m);b.position.set(x,y,z);g.add(b);return b;};
-  box(0.15,H,6,2.5,H/2,-3,0xe2d9c8);box(0.15,H,3.2,2.5,H/2,4.4,0xe2d9c8); // bedroom/study partition with a doorway
-  box(1.3,2.2,0.08,0,1.1,D-0.05,0x6b4423);box(0.12,0.12,0.12,0.45,1.05,D-0.12,0xd4af37); // front door
-  for(const [x,z] of [[-5,-2],[5,-2],[-5,3],[5,3]])plane(1.6,0.5,x,H-0.02,z,0,new THREE.MeshBasicMaterial({color:0xfff2d6})).rotation.x=Math.PI/2;
-  // living room
-  box(3.2,0.5,1,-4.5,0.25,3.6,0x445566);box(3.2,0.7,0.25,-4.5,0.75,4.1,0x445566);box(1,0.5,1.8,-6.6,0.25,3.2,0x445566);const rug=new THREE.Mesh(new THREE.PlaneGeometry(3.4,2.2),L(0x9c4a2c));rug.rotation.x=-Math.PI/2;rug.position.set(-4.5,0.01,2.2);g.add(rug);
+// the interior. Walls and ceilings face inward so the camera can always see in; the upper floor is only drawn while you are up there.
+function hrRoom(){if(HR.room)return;const Y=HR.Y,g=new THREE.Group();g.position.set(0,Y,0);g.visible=false;scene.add(g);HR.room=g;const up=new THREE.Group();g.add(up);HR.up=up;const L=c=>new THREE.MeshLambertMaterial({color:c});
+  const W=9,D=6,H2=HR_UP+3.0;const wood=canvasTex(256,256,(c,w,h)=>{for(let y=0;y<h;y+=16){c.fillStyle=`rgb(${140+Math.random()*30|0},${98+Math.random()*20|0},${60+Math.random()*15|0})`;c.fillRect(0,y,w,15);c.fillStyle='rgba(0,0,0,0.25)';c.fillRect(0,y+15,w,1);}});wood.wrapS=wood.wrapT=THREE.RepeatWrapping;wood.repeat.set(5,3);
+  const floorM=new THREE.MeshLambertMaterial({map:wood}),carpet=L(0xb7a99a),wallM=L(0xeee6d8),ceilM=L(0xf6f3ee);
+  const plane=(w,h,x,y,z,ry,m,par)=>{const p=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m||wallM);p.position.set(x,y,z);p.rotation.y=ry;(par||g).add(p);return p;};
+  const flat=(x0,x1,z0,z1,y,m,down,par)=>{const p=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),m);p.rotation.x=down?Math.PI/2:-Math.PI/2;p.position.set((x0+x1)/2,y,(z0+z1)/2);(par||g).add(p);return p;};
+  const box=(w,h,d,x,y,z,m,par)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof m==='number'?L(m):m);b.position.set(x,y,z);(par||g).add(b);return b;};
+  // outer walls (both storeys) + ground floor
+  plane(W*2,H2,0,H2/2,-D,0);plane(W*2,H2,0,H2/2,D,Math.PI);plane(D*2,H2,-W,H2/2,0,Math.PI/2);plane(D*2,H2,W,H2/2,0,-Math.PI/2);flat(-W,W,-D,D,0,floorM);
+  // the stairwell hole: rectangles of ground ceiling (facing down) and upper floor (facing up) around it
+  const hx0=0.3,hx1=1.7,hz0=-1.6,hz1=3.6,rects=[[-W,hx0,-D,D],[hx1,W,-D,D],[hx0,hx1,-D,hz0],[hx0,hx1,hz1,D]];
+  for(const [x0,x1,z0,z1] of rects){flat(x0,x1,z0,z1,HR_UP-0.12,ceilM,true);flat(x0,x1,z0,z1,HR_UP,x0>hx1-0.01&&z1<=0.01?carpet:floorM,false,up);FLOOR_PLATES.push({x0:x0+0.05,x1:x1-0.05,z0:z0+0.05,z1:z1-0.05,y:Y+HR_UP,s:{ax:0,az:0,ay:Y+HR_UP,bx:1,bz:0,by:Y+HR_UP,ux:1,uz:0,L:1,hw:1,hi:-1}});}
+  flat(-W,W,-D,D,H2,ceilM,true,up);
+  FLOOR_PLATES.push({x0:-W+0.3,x1:W-0.3,z0:-D+0.3,z1:D-0.3,y:Y,catch:yy=>!!HR.cur&&yy<Y+10,s:{ax:0,az:0,ay:Y,bx:1,bz:0,by:Y,ux:1,uz:0,L:1,hw:1,hi:-1}});
+  FLOOR_PLATES.push({x0:HR_ST.x0,x1:HR_ST.x1,z0:HR_ST.zt-0.25,z1:HR_ST.zb,y:Y,ramp:(x,z)=>Y+hrRampH(z),s:{ax:0,az:0,ay:Y,bx:1,bz:0,by:Y,ux:1,uz:0,L:1,hw:1,hi:-1}});
+  // staircase: 10 solid steps, a handrail, and railings around the opening upstairs
+  const stepM=L(0x8a6a4a),n=10,run=(HR_ST.zb-HR_ST.zt)/n;for(let i=0;i<n;i++){const top=HR_UP*(i+1)/n;box(HR_ST.x1-HR_ST.x0,top,run,(HR_ST.x0+HR_ST.x1)/2,top/2,HR_ST.zb-run*(i+0.5),stepM);}
+  const railM=L(0xffffff);{const len=Math.hypot(HR_ST.zb-HR_ST.zt,HR_UP),r=box(0.06,0.06,len,HR_ST.x1+0.05,HR_UP/2+0.9,(HR_ST.zb+HR_ST.zt)/2,railM);r.rotation.x=Math.atan2(HR_UP,HR_ST.zb-HR_ST.zt);}
+  box(0.06,0.9,hz1-hz0,hx0,HR_UP+0.45,(hz0+hz1)/2,railM,up);box(0.06,0.9,hz1-(HR_ST.zt+0.2),hx1,HR_UP+0.45,(hz1+HR_ST.zt+0.2)/2,railM,up);box(hx1-hx0,0.9,0.06,(hx0+hx1)/2,HR_UP+0.45,hz1,railM,up);
+  for(let z=hz0;z<=hz1;z+=0.5)box(0.04,0.9,0.04,hx0,HR_UP+0.45,z,railM,up);
+  // windows: an outside view (garden, fence, neighbours' houses, sky) that follows the time of day
+  const view=canvasTex(256,160,(c,w,h)=>{const sk=c.createLinearGradient(0,0,0,h*0.6);sk.addColorStop(0,'#7fb6e6');sk.addColorStop(1,'#dcebf5');c.fillStyle=sk;c.fillRect(0,0,w,h);
+    for(let i=0;i<4;i++){const x=i*70+rand(-10,10),hw=rand(40,56),hh=rand(26,36),y=h*0.62;c.fillStyle=pick(['#e9e1cf','#cfc6b8','#b9c2c8','#f4c7c3','#bfd8d2']);c.fillRect(x,y-hh,hw,hh);c.fillStyle=pick(['#6b4a3a','#5a5a5a','#3d4a5c']);c.beginPath();c.moveTo(x-4,y-hh);c.lineTo(x+hw/2,y-hh-16);c.lineTo(x+hw+4,y-hh);c.fill();c.fillStyle='#3a4a5a';c.fillRect(x+8,y-hh+8,8,8);c.fillRect(x+hw-16,y-hh+8,8,8);}
+    for(let i=0;i<7;i++){c.fillStyle=`rgb(${40+Math.random()*30|0},${100+Math.random()*40|0},${45+Math.random()*20|0})`;c.beginPath();c.arc(rand(0,w),h*0.55,rand(10,20),0,Math.PI*2);c.fill();}
+    c.fillStyle='#5f9a45';c.fillRect(0,h*0.62,w,h);c.fillStyle='#f4f1ea';for(let x=0;x<w;x+=9)c.fillRect(x,h*0.66,5,18);c.fillRect(0,h*0.69,w,3);});
+  HR.winM=new THREE.MeshBasicMaterial({map:view});const frameM=L(0xffffff);
+  const win=(x,y,z,ry,par)=>{const p=plane(1.5,1.15,x,y,z,ry,HR.winM,par);const fx=Math.cos(ry),fz=-Math.sin(ry),nx=Math.sin(ry),nz=Math.cos(ry);
+    const bar=(w,h,ox,oy)=>{const b=box(w,h,0.05,x+fx*ox+nx*0.02,y+oy,z+fz*ox+nz*0.02,frameM,par);b.rotation.y=ry;};bar(1.62,0.07,0,0.6);bar(1.62,0.07,0,-0.6);bar(0.07,1.25,-0.78,0);bar(0.07,1.25,0.78,0);bar(0.05,1.15,0,0);bar(1.5,0.04,0,0);
+    const sill=box(1.75,0.06,0.2,x+nx*0.1,y-0.66,z+nz*0.1,frameM,par);sill.rotation.y=ry;};
+  const yG=1.6,yU=HR_UP+1.6,f=D-0.01,s=W-0.01;
+  for(const x of [-6,-3,4,7])win(x,yG,f,Math.PI);for(const x of [-6.5,-2.5,3.5,7])win(x,yU,f,Math.PI,up);
+  for(const x of [-5.5,4.5])win(x,yG+0.2,-f,0);for(const x of [-6,-1.5,6.5])win(x,yU,-f,0,up);
+  for(const z of [-1.5,2.5])win(-s,yG,z,Math.PI/2);win(-s,yU,-4,Math.PI/2,up);win(-s,yU,3,Math.PI/2,up);
+  win(s,yG,4,-Math.PI/2);win(s,yG,-3,-Math.PI/2);win(s,yU,-2.5,-Math.PI/2,up);win(s,yU,3.5,-Math.PI/2,up);
+  // lights
+  const lampM=new THREE.MeshBasicMaterial({color:0xfff2d6});for(const [x,z] of [[-5,-2],[5,-2],[-5,3],[5,3]]){flat(x-0.8,x+0.8,z-0.25,z+0.25,HR_UP-0.14,lampM,true);flat(x-0.8,x+0.8,z-0.25,z+0.25,H2-0.02,lampM,true,up);}
+  // ---- ground floor: front door, living room, kitchen, study, dining room
+  box(0.15,HR_UP,6,2.5,HR_UP/2,-3,0xe2d9c8);box(0.15,HR_UP,3.2,2.5,HR_UP/2,4.4,0xe2d9c8);
+  box(1.3,2.2,0.08,0,1.1,D-0.05,0x6b4423);box(0.12,0.12,0.12,0.45,1.05,D-0.12,0xd4af37);
+  box(3.2,0.5,1,-4.5,0.25,3.6,0x445566);box(3.2,0.7,0.25,-4.5,0.75,4.1,0x445566);box(1,0.5,1.8,-6.6,0.25,3.2,0x445566);const rug=flat(-6.2,-2.8,1.1,3.3,0.01,L(0x9c4a2c));
   box(1.4,0.06,0.7,-4.5,0.42,2.2,0x6b4a2a);box(2.4,0.55,0.5,-4.5,0.28,0.5,0x2b2b2b);
-  // kitchen
   box(6,0.95,0.7,-5.5,0.48,-D+0.4,0xe8e4dc);box(6.1,0.06,0.75,-5.5,0.98,-D+0.4,0x333333);box(0.9,2,0.8,-8.4,1,-D+0.5,0xd0d0d0);box(1.6,0.06,1,-5,0.78,-2.6,0x8a5a2a);for(const [x,z] of [[-5.8,-2.6],[-4.2,-2.6]])box(0.45,0.9,0.45,x,0.45,z,0x6b4a2a);
-  // bedroom
-  box(2.2,0.45,2.4,6.2,0.3,-3.9,0x6b4a2a);box(2.1,0.25,2.3,6.2,0.6,-3.9,0xf2f2f2);box(2.1,0.12,1.4,6.2,0.78,-3.4,0x1d3557);box(0.6,0.55,0.45,4.6,0.28,-5.4,0x6b4a2a);box(1.6,0.9,0.5,8.5,0.45,-0.9,0x8a6a4a);
-  // study
   box(1.8,0.06,0.8,6.8,0.8,4.6,0x6b4a2a);box(0.5,0.9,0.5,6.8,0.45,3.7,0x222222);box(0.8,2,0.35,8.6,1,2.6,0x7a5232);
-  // loot (shown per house)
+  box(2.2,0.06,1.1,6,0.78,-3.2,0x8a5a2a);for(const [x,z] of [[5.2,-3.9],[6.8,-3.9],[5.2,-2.5],[6.8,-2.5]])box(0.45,0.9,0.45,x,0.45,z,0x6b4a2a);box(1.8,2,0.4,8.6,1,-4.6,0x7a5232);
+  // ---- upstairs: master bedroom (back right), kid's room (back left), bathroom (front right), landing
+  const U=HR_UP;box(0.15,3,5.4,2.5,U+1.5,-3.3,0xe2d9c8,up);box(0.15,3,3.8,-3,U+1.5,-4.1,0xe2d9c8,up);box(6.5,3,0.15,5.75,U+1.5,1.6,0xe2d9c8,up);
+  box(2.2,0.45,2.4,6.2,U+0.3,-3.9,0x6b4a2a,up);box(2.1,0.25,2.3,6.2,U+0.6,-3.9,0xf2f2f2,up);box(2.1,0.12,1.4,6.2,U+0.78,-3.4,0x1d3557,up);box(2.2,1.1,0.12,6.2,U+0.8,-5.15,0x5a3a22,up);box(0.6,0.55,0.45,4.6,U+0.28,-5.4,0x6b4a2a,up);box(1.6,0.9,0.5,8.5,U+0.45,-0.9,0x8a6a4a,up);
+  box(1.1,0.35,2,-6.5,U+0.25,-4.3,0x2a6f97,up);box(1,0.18,1.9,-6.5,U+0.5,-4.3,0xffd6e0,up);box(0.8,0.5,0.5,-4,U+0.25,-5.5,0xffb703,up);const kr=flat(-8,-4,-3.5,-1.5,U+0.01,L(0x8ecae6),false,up);
+  box(1.8,0.6,0.8,6.8,U+0.3,4.9,0xf8f8f8,up);box(0.6,0.9,0.45,4,U+0.45,5.5,0xf0f0f0,up);box(0.6,0.7,0.05,4,U+1.6,5.95,0xbfd7ea,up);flat(3,8.8,1.7,5.9,U+0.01,L(0xdfe7ea),false,up);
+  box(1,0.9,0.9,-6.5,U+0.45,3.8,0x6d597a,up);box(0.8,2,0.35,-8.6,U+1,1.5,0x7a5232,up);
+  // loot (shown per house); y = floor height
   const tvM=new THREE.MeshLambertMaterial({color:0x111111,emissive:0x3a6ea5,emissiveIntensity:0.5});
-  HR.loot=[{k:'tv',label:'Steal the TV',x:-4.5,z:0.9,v:[150,400],noise:9,m:[box(2,1.1,0.08,-4.5,1.15,0.5,tvM)],p:1},
-    {k:'cash',label:'Grab the cash jar',x:-6.5,z:-4.9,v:[20,150],noise:2,m:[box(0.25,0.3,0.25,-6.5,1.15,-D+0.4,0x9fd8c8)],p:0.9},
-    {k:'jewel',label:'Take the jewelry box',x:8.1,z:-0.9,v:[200,800],noise:3,m:[box(0.45,0.22,0.3,8.5,1.02,-0.9,0x7a1f3d)],p:0.8},
-    {k:'laptop',label:'Take the laptop',x:6.8,z:4.0,v:[100,300],noise:2,m:[box(0.55,0.03,0.4,6.8,0.85,4.6,0x9aa0a6),box(0.55,0.36,0.03,6.8,1.02,4.82,0x2a2a2a)],p:0.7},
-    {k:'safe',label:'Crack the safe',x:3.4,z:-4.8,v:[500,2000],noise:7,m:[box(0.8,0.9,0.7,3.4,0.45,-5.4,0x3a3d40)],p:0.35,slow:3}];
-  FLOOR_PLATES.push({x0:-W+0.3,x1:W-0.3,z0:-D+0.3,z1:D-0.3,y:Y,s:{ax:0,az:0,ay:Y,bx:1,bz:0,by:Y,ux:1,uz:0,L:1,hw:1,hi:-1}});}
-const HR_SPOTS={tv:[-4.5,3.0,Math.PI],cook:[-5.5,-4.6,Math.PI],desk:[6.8,3.6,0],bed:[6.2,-3.05,0],kitchen:[-5,-1.7,Math.PI],hall:[0,0,0],bedroom:[5.5,-1.5,0]};
+  HR.loot=[{k:'tv',label:'Steal the TV',x:-4.5,z:0.9,y:0,v:[150,400],noise:9,m:[box(2,1.1,0.08,-4.5,1.15,0.5,tvM)],p:1},
+    {k:'cash',label:'Grab the cash jar',x:-6.5,z:-4.9,y:0,v:[20,150],noise:2,m:[box(0.25,0.3,0.25,-6.5,1.15,-D+0.4,0x9fd8c8)],p:0.9},
+    {k:'laptop',label:'Take the laptop',x:6.8,z:4.0,y:0,v:[100,300],noise:2,m:[box(0.55,0.03,0.4,6.8,0.85,4.6,0x9aa0a6),box(0.55,0.36,0.03,6.8,1.02,4.82,0x2a2a2a)],p:0.7},
+    {k:'jewel',label:'Take the jewelry box',x:8.1,z:-0.9,y:U,v:[200,800],noise:3,m:[box(0.45,0.22,0.3,8.5,U+1.02,-0.9,0x7a1f3d,up)],p:0.85},
+    {k:'console',label:'Take the game console',x:-4,z:-4.9,y:U,v:[120,350],noise:2,m:[box(0.45,0.1,0.35,-4,U+0.55,-5.5,0x111111,up)],p:0.6},
+    {k:'safe',label:'Crack the safe',x:3.4,z:-4.8,y:U,v:[500,2000],noise:7,m:[box(0.8,0.9,0.7,3.4,U+0.45,-5.4,0x3a3d40,up)],p:0.45,slow:3}];}
+// where residents spend time: [x, z, facing, floor]
+const HR_SPOTS={tv:[-4.5,3.0,Math.PI,0],cook:[-5.5,-4.6,Math.PI,0],desk:[6.8,3.6,0,0],kitchen:[-5,-1.7,Math.PI,0],dining:[6,-2.2,Math.PI,0],bedroom:[5.5,-1.5,0,1],bath:[5.5,3.5,0,1],bed:[6.2,-3.05,0,1],kbed:[-6.5,-3.45,0,1]};
+const HR_WALLS=[{f:0,x:2.5,blk:z=>z<0||z>2.8},{f:1,x:2.5,blk:z=>z<-0.6},{f:1,x:-3,blk:z=>z<-1.4}];
+function hrFloor(y){return y-HR.Y>1.7?1:0;}
 function hrMakePools(){if(!HR.fpool){HR.fpool=[0,1,2].map(()=>{const h=makeHuman(randomLook());h.g.visible=false;scene.add(h.g);return h;});}
   if(!HR.pool&&AV.ready){HR.pool=[];for(const n of Object.keys(AV.models))if(n!=='josh'){const a=avMake(n,1.72);if(a){a.s0=a.obj.scale.x;HR.pool.push(a);}}}}
+const D_IN=5.0;
 function hrEnter(d){if(HR.cur)return;hrRoom();hrMakePools();glassSound&&glassSound();thud(0.4);
-  fadeTo(()=>{HR.cur=d;HR.room.visible=true;player.x=0;player.z=D_IN;player.y=HR.Y;player.vy=0;player.h=Math.PI;HR.crack=null;
+  fadeTo(()=>{HR.cur=d;HR.room.visible=true;player.x=0;player.z=D_IN;player.y=HR.Y;player.vy=0;player.h=Math.PI;HR.crack=null;HR.px=player.x;HR.pz=player.z;
     const R=hrRand(d.seed),hour=S.time*24,night=hour<6||hour>=22;
     for(const l of HR.loot){l.here=R()<l.p&&!d.taken[l.k];l.m.forEach(m=>m.visible=l.here);}
     for(const r of HR.res){r.obj.visible=false;r.obj.rotation.set(0,0,0);}HR.res=[];
-    const n=1+Math.floor(R()*3),acts=night?['bed','bed','tv']:['tv','cook','desk','kitchen','bedroom'];const avs=HR.pool&&HR.pool.length?HR.pool.slice().sort(()=>R()-0.5):null;
-    for(let i=0;i<n;i++){const kid=i===2||(n>1&&R()<0.15&&i>0),act=night?(kid?'tv':'bed'):acts[Math.floor(R()*acts.length)],sp=HR_SPOTS[act];
+    const n=1+Math.floor(R()*3),acts=['tv','cook','desk','kitchen','dining','bedroom','bath'];const avs=HR.pool&&HR.pool.length?HR.pool.slice().sort(()=>R()-0.5):null;
+    for(let i=0;i<n;i++){const kid=i===2||(n>1&&R()<0.15&&i>0),act=night?(kid?'kbed':'bed'):acts[Math.floor(R()*acts.length)],sp=HR_SPOTS[act];
       let obj,av=null,h=null;if(avs&&avs[i]){av=avs[i];obj=av.obj;obj.scale.setScalar(av.s0*(kid?1.3:1.62+R()*0.2)/1.72);}else{h=HR.fpool[i];obj=h.g;obj.scale.setScalar(kid?0.75:1);}
-      const sofa=night&&act==='tv',x=sofa?-5.3:sp[0]+(act==='bed'?(i?0.45:-0.45):R()*0.6-0.3),z=sofa?3.5:sp[1];obj.rotation.order='YXZ';
-      HR.res.push({obj,av,h,kid,act,x,y:HR.Y,z,face:sp[2],mode:night&&act==='bed'||night&&kid?'sleep':'calm',t:0,hp:kid?40:70,said:0,wake:0,cd:0,tx:x,tz:z,home:[x,z]});}
-    toast(night?'Everyone is asleep · be quiet':'Someone is home · grab what you can','bad');});}
-const D_IN=5.0;
+      obj.rotation.order='YXZ';const x=sp[0]+(act==='bed'?(i?0.45:-0.45):act==='kbed'?0:R()*0.6-0.3),z=sp[1];
+      HR.res.push({obj,av,h,kid,act,x,y:HR.Y+(sp[3]?HR_UP:0),z,face:sp[2],mode:night?'sleep':'calm',t:0,hp:kid?40:70,said:0,wake:0,cd:0,tx:x,tz:z,home:[x,z],stair:0});}
+    toast(night?'Everyone is asleep upstairs · be quiet':'Someone is home · grab what you can','bad');});}
 function hrExit(){if(!HR.cur)return;const d=HR.cur;fadeTo(()=>{HR.cur=null;HR.room.visible=false;for(const r of HR.res)r.obj.visible=false;S.floor=null;player.x=d.x+d.nx*1.6;player.z=d.z+d.nz*1.6;player.y=0.25;player.vy=0;player.h=d.yaw;
   const left=HR.loot.filter(l=>l.here&&!d.taken[l.k]).length;if(left===0)d.robbedAt=clock;});}
 function hrNoise(x,z,r){for(const p of HR.res){if(p.mode==='out')continue;const d=Math.hypot(p.x-x,p.z-z);if(d<r&&(p.mode==='sleep'||p.mode==='calm')){p.mode='alert';p.t=0;}}}
+function hrBurglary(){if(HR.res.some(p=>p.mode!=='sleep'&&p.mode!=='out'&&p.mode!=='calm'))addCrime(1,'Burglary');}
 function hrTake(l){const d=HR.cur;if(!d||d.taken[l.k]||!l.here)return;
   if(l.slow){if(!HR.crack||HR.crack.l!==l){HR.crack={l,t:0};toast('Cracking the safe... stay close');hrNoise(l.x,l.z,l.noise);}return;}
-  d.taken[l.k]=true;l.m.forEach(m=>m.visible=false);const amt=Math.round(randi(l.v[0],l.v[1])/10)*10;addMoney(amt);toast(l.label.replace(/^(Steal|Grab|Take|Crack) the /,'')+' · +$'+amt,'cash');thud(0.2);hrNoise(l.x,l.z,l.noise);
-  if(HR.res.some(p=>p.mode!=='sleep'&&p.mode!=='out'&&p.mode!=='calm'))addCrime(1,'Burglary');}
+  d.taken[l.k]=true;l.m.forEach(m=>m.visible=false);const amt=Math.round(randi(l.v[0],l.v[1])/10)*10;addMoney(amt);toast(l.label.replace(/^(Steal|Grab|Take|Crack) the /,'')+' · +$'+amt,'cash');thud(0.2);hrNoise(l.x,l.z,l.noise);hrBurglary();}
+function hrTakeDone(l){const d=HR.cur;if(!d)return;d.taken[l.k]=true;l.m.forEach(m=>m.visible=false);const amt=Math.round(randi(l.v[0],l.v[1])/10)*10;addMoney(amt);toast('Safe cracked · +$'+amt,'cash');thud(0.3);hrNoise(l.x,l.z,l.noise);hrBurglary();}
 function hrAction(){if(player.inCar||player.inAir||S.deadT>0)return null;
-  if(HR.cur){let best=null,bd=1.6;const px=player.x,pz=player.z;
-    if(Math.hypot(px,pz-D_IN-0.5)<bd){bd=Math.hypot(px,pz-D_IN-0.5);best={key:'E',label:'Leave the house',act:hrExit};}
-    for(const l of HR.loot){if(!l.here||HR.cur.taken[l.k])continue;const d=Math.hypot(l.x-px,l.z-pz);if(d<bd){bd=d;best={key:'E',label:HR.crack&&HR.crack.l===l?'Cracking... '+Math.round(HR.crack.t/l.slow*100)+'%':l.label,act:()=>hrTake(l)};}}
+  if(HR.cur){let best=null,bd=1.6;const px=player.x,pz=player.z,py=player.y-HR.Y;
+    if(py<1&&Math.hypot(px,pz-D_IN-0.5)<bd){bd=Math.hypot(px,pz-D_IN-0.5);best={key:'E',label:'Leave the house',act:hrExit};}
+    for(const l of HR.loot){if(!l.here||HR.cur.taken[l.k]||Math.abs(py-l.y)>1.4)continue;const d=Math.hypot(l.x-px,l.z-pz);if(d<bd){bd=d;best={key:'E',label:HR.crack&&HR.crack.l===l?'Cracking... '+Math.round(HR.crack.t/l.slow*100)+'%':l.label,act:()=>hrTake(l)};}}
     return best?Object.assign(best,{dist:bd}):null;}
   if(player.y>2)return null;const n=hrDoorNear(player.x,player.z,1.7);if(!n)return null;const d=n.door;
   return{key:'E',dist:n.dist,label:d.robbedAt&&clock-d.robbedAt<600?'Break in (already robbed)':'Break into the house',act:()=>hrEnter(d)};}
 function hrPunch(){if(!HR.cur)return false;const fx=Math.sin(player.h),fz=Math.cos(player.h);
-  for(const p of HR.res){if(p.mode==='out')continue;const dx=p.x-player.x,dz=p.z-player.z,a=dx*fx+dz*fz;if(a>0&&a<1.9&&Math.abs(dx*fz-dz*fx)<0.9){p.hp-=rand(22,34);thud(0.3);addCrime(1,'Assault');
+  for(const p of HR.res){if(p.mode==='out'||Math.abs(p.y-player.y)>1.2)continue;const dx=p.x-player.x,dz=p.z-player.z,a=dx*fx+dz*fz;if(a>0&&a<1.9&&Math.abs(dx*fz-dz*fx)<0.9){p.hp-=rand(22,34);thud(0.3);addCrime(1,'Assault');
     if(p.hp<=0){p.mode='out';p.t=0;say(p,'Ugh...');}else{say(p,pick(['Ow!','Stop!','Please, take what you want!']));p.mode=p.kid||Math.random()<0.5?'hands':'fight';p.t=0;}
     hrNoise(p.x,p.z,8);return true;}}return false;}
-function updateHouseRob(dt){if(!HR.cur||!HR.room)return;const W=8.6,D=5.6;S.insideShop={name:'Break-in · '+(HR.res.filter(p=>p.mode!=='out').length)+' home',cx:HR.cur.x,cz:HR.cur.z};
-  if(Math.abs(player.y-HR.Y)<3){player.x=clamp(player.x,-W,W);player.z=clamp(player.z,-D,D);if(player.x>2.3&&player.x<2.7&&(player.z<0||player.z>2.8))player.x=player.x<2.5?2.3:2.7;}
+// walk a resident toward a point, using the stairs when it is on the other floor; returns true while moving
+function hrMove(p,tx,tz,tf,sp,dt){
+  if(p.stair){p.x=(HR_ST.x0+HR_ST.x1)/2;p.z+=p.stair*sp*0.8*dt;p.y=HR.Y+hrRampH(p.z);p.face=p.stair<0?Math.PI:0;
+    if(p.stair<0&&p.z<=HR_ST.zt){p.stair=0;p.z=HR_ST.zt-0.4;p.y=HR.Y+HR_UP;}else if(p.stair>0&&p.z>=HR_ST.zb){p.stair=0;p.z=HR_ST.zb+0.4;p.y=HR.Y;}return true;}
+  const pf=hrFloor(p.y);let gx=tx,gz=tz;if(pf!==tf){gx=(HR_ST.x0+HR_ST.x1)/2;gz=pf===0?HR_ST.zb+0.4:HR_ST.zt-0.4;}
+  const dx=gx-p.x,dz=gz-p.z,d=Math.hypot(dx,dz);if(d<0.3){if(pf!==tf){p.stair=pf===0?-1:1;return true;}return false;}
+  p.x+=dx/d*sp*dt;p.z+=dz/d*sp*dt;p.face=Math.atan2(dx,dz);return true;}
+function updateHouseRob(dt){if(!HR.cur||!HR.room)return;const W=8.6,D=5.6,ly=player.y-HR.Y,pf=hrFloor(player.y);
+  S.insideShop={name:'Break-in · '+(pf?'upstairs':'downstairs')+' · '+(HR.res.filter(p=>p.mode!=='out').length)+' home',cx:HR.cur.x,cz:HR.cur.z};
+  if(Math.abs(ly)<8){player.x=clamp(player.x,-W,W);player.z=clamp(player.z,-D,D);
+    for(const w of HR_WALLS)if(w.f===pf&&w.blk(player.z)&&Math.abs(player.x-w.x)<0.25)player.x=HR.px<w.x?w.x-0.25:w.x+0.25;
+    // can't walk into the staircase from underneath or the side; railings stop you falling down the stairwell upstairs
+    const inSx=player.x>HR_ST.x0-0.15&&player.x<HR_ST.x1+0.15;
+    if(pf===0&&inSx&&player.z<HR_ST.zb&&player.z>HR_ST.zt-0.1&&hrRampH(player.z)-ly>0.7)player.x=HR.px<(HR_ST.x0+HR_ST.x1)/2?HR_ST.x0-0.16:HR_ST.x1+0.16;
+    if(ly>HR_UP-0.5){const inZ=player.z>HR_ST.zt&&player.z<3.6;if(inZ&&HR.px<=0.3&&player.x>0.3)player.x=0.29;if(inZ&&HR.px>=1.7&&player.x<1.7)player.x=1.71;if(HR.pz>=3.6&&player.z<3.6&&player.x>0.3&&player.x<1.7)player.z=3.61;}}
+  HR.px=player.x;HR.pz=player.z;
+  HR.up.visible=ly>1.7;const day=clamp(Math.sin((S.time-0.25)*Math.PI*2)*1.6+0.35,0.1,1);HR.winM.color.setRGB(day,day,Math.min(1,day*1.05+0.05));
   if(HR.crack){const l=HR.crack.l;if(Math.hypot(l.x-player.x,l.z-player.z)>1.8){HR.crack=null;toast('You stopped cracking the safe');}else{HR.crack.t+=dt;if(Math.random()<dt*2)thud(0.08);if(HR.crack.t>=l.slow){HR.crack=null;hrTakeDone(l);}}}
-  const night=S.time*24<6||S.time*24>=22;
-  for(const p of HR.res){p.obj.visible=true;p.t+=dt;p.said-=dt;p.cd-=dt;const dx=player.x-p.x,dz=player.z-p.z,d=Math.hypot(dx,dz);let moving=0,clip='idle';
-    const sees=d<9&&(Math.cos(Math.atan2(dx,dz)-p.face)>0.25||d<2.5);
-    if(p.mode==='sleep'){if(d<2.2){p.wake+=dt;if(p.wake>2.5){p.mode='alert';p.t=0;}}else p.wake=Math.max(0,p.wake-dt*0.5);}
-    else if(p.mode==='calm'){if(sees){p.mode='alert';p.t=0;}else if(p.act==='kitchen'||p.act==='bedroom'||p.act==='hall'){const tx=p.tx-p.x,tz=p.tz-p.z,td=Math.hypot(tx,tz);if(td<0.3){p.tx=clamp(p.home[0]+rand(-2.5,2.5),-8,8);p.tz=clamp(p.home[1]+rand(-1.5,1.5),-5,5);}else{p.x+=tx/td*1.1*dt;p.z+=tz/td*1.1*dt;p.face=Math.atan2(tx,tz);moving=1;}}}
+  for(const p of HR.res){const rf=hrFloor(p.y);p.obj.visible=rf===0||HR.up.visible||p.stair!==0;p.t+=dt;p.said-=dt;p.cd-=dt;const dx=player.x-p.x,dz=player.z-p.z,d=Math.hypot(dx,dz),same=rf===pf&&!p.stair;let moving=0;
+    const sees=same&&d<9&&(Math.cos(Math.atan2(dx,dz)-p.face)>0.25||d<2.5);
+    if(p.mode==='sleep'){if(same&&d<2.2){p.wake+=dt;if(p.wake>2.5){p.mode='alert';p.t=0;}}else p.wake=Math.max(0,p.wake-dt*0.5);}
+    else if(p.mode==='calm'){if(sees){p.mode='alert';p.t=0;}else if(p.act==='kitchen'||p.act==='bedroom'||p.act==='dining'){if(!hrMove(p,p.tx,p.tz,rf,1.1,dt)){p.tx=clamp(p.home[0]+rand(-2.5,2.5),-8,8);p.tz=clamp(p.home[1]+rand(-1.5,1.5),-5,5);}else moving=1;}}
     else if(p.mode==='alert'){p.face=Math.atan2(dx,dz);if(p.said<=0){p.said=6;say(p,pick(['Who are you?!','Get out of my house!','What are you doing in here?!',"I'm calling the police!"]));}
       if(p.t>0.8){const r=Math.random();p.mode=p.kid?'flee':r<0.45?'call':r<0.75?'fight':'hands';p.t=0;if(p.mode==='call')toast('The homeowner is calling 911 · stop them!','bad');}}
-    else if(p.mode==='call'){p.face=Math.atan2(dx,dz)+Math.PI;if(p.t>5){addCrime(2,'Home invasion');say(p,'Yes, police? Someone broke into my house!');p.mode='flee';p.t=0;}}
-    else if(p.mode==='fight'){p.face=Math.atan2(dx,dz);if(d>1.1){p.x+=dx/d*3.2*dt;p.z+=dz/d*3.2*dt;moving=2;}else if(p.cd<=0&&S.deadT<=0){p.cd=0.9;damagePlayer(7,'Beaten up by a homeowner');thud(0.3);if(p.said<=0){p.said=4;say(p,pick(['Get out!','Not in my house!','You picked the wrong house!']));}}}
-    else if(p.mode==='flee'){const ax=p.x-player.x,az=p.z-player.z,ad=Math.hypot(ax,az)||1;if(ad<6&&p.t<5){p.x=clamp(p.x+ax/ad*3.4*dt,-8.4,8.4);p.z=clamp(p.z+az/ad*3.4*dt,-5.4,5.4);p.face=Math.atan2(ax,az);moving=2;}else{p.mode='hands';p.t=0;}if(p.said<=0){p.said=5;say(p,pick(['Help!','Somebody help!','Mom!','Please don\'t hurt me!']));}}
-    else if(p.mode==='hands'){p.face=Math.atan2(dx,dz);if(p.said<=0&&d<4){p.said=7;say(p,pick(['Take whatever you want!','Please, just go!',"Don't hurt us!"]));}if(p.t>8&&!p.kid){p.mode='call';p.t=0;}}
-    p.obj.position.set(p.x,p.y+(p.mode==='sleep'?0.75:p.mode==='out'?0.08:0),p.z);
-    const lying=p.mode==='sleep'||p.mode==='out';p.obj.rotation.x=lying?-Math.PI/2:0;if(!lying){let df=p.face-p.obj.rotation.y;df=Math.atan2(Math.sin(df),Math.cos(df));p.obj.rotation.y+=df*Math.min(1,dt*8);}else if(p.mode==='sleep')p.obj.rotation.y=p.act==='tv'?-Math.PI/2:0;
+    else if(p.mode==='call'){if(!p.stair)p.face=Math.atan2(dx,dz)+Math.PI;if(p.t>5){addCrime(2,'Home invasion');say(p,'Yes, police? Someone broke into my house!');p.mode='flee';p.t=0;}}
+    else if(p.mode==='fight'){if(!same||d>1.1){if(hrMove(p,player.x,player.z,pf,3.2,dt))moving=2;}else{p.face=Math.atan2(dx,dz);if(p.cd<=0&&S.deadT<=0){p.cd=0.9;damagePlayer(7,'Beaten up by a homeowner');thud(0.3);if(p.said<=0){p.said=4;say(p,pick(['Get out!','Not in my house!','You picked the wrong house!']));}}}}
+    else if(p.mode==='flee'){if(p.stair){hrMove(p,0,0,rf,3.4,dt);moving=2;}else{const ax=p.x-player.x,az=p.z-player.z,ad=Math.hypot(ax,az)||1;if(same&&ad<6&&p.t<5){p.x=clamp(p.x+ax/ad*3.4*dt,-8.4,8.4);p.z=clamp(p.z+az/ad*3.4*dt,-5.4,5.4);p.face=Math.atan2(ax,az);moving=2;}else{p.mode='hands';p.t=0;}}if(p.said<=0){p.said=5;say(p,pick(['Help!','Somebody help!','Mom!',"Please don't hurt me!"]));}}
+    else if(p.mode==='hands'){p.face=Math.atan2(dx,dz);if(p.said<=0&&same&&d<4){p.said=7;say(p,pick(['Take whatever you want!','Please, just go!',"Don't hurt us!"]));}if(p.t>8&&!p.kid){p.mode='call';p.t=0;}}
+    const lying=p.mode==='sleep'||p.mode==='out';p.obj.position.set(p.x,p.y+(p.mode==='sleep'?(p.act==='kbed'?0.6:0.75):p.mode==='out'?0.08:0),p.z);
+    p.obj.rotation.x=lying?-Math.PI/2:0;if(!lying){let df=p.face-p.obj.rotation.y;df=Math.atan2(Math.sin(df),Math.cos(df));p.obj.rotation.y+=df*Math.min(1,dt*8);}else if(p.mode==='sleep')p.obj.rotation.y=0;
     if(p.av){avPlay(p.av,moving===2?'run':moving?'walk':'idle',0.25);p.av.mixer.update(dt);}
     else if(p.h){if(p.mode==='hands'||p.mode==='call')poseHandsUp(p.h);else animHuman(p.h,moving?clock*(moving===2?11:7):0,moving?1:0,moving===2);}}}
-function hrTakeDone(l){const d=HR.cur;if(!d)return;d.taken[l.k]=true;l.m.forEach(m=>m.visible=false);const amt=Math.round(randi(l.v[0],l.v[1])/10)*10;addMoney(amt);toast('Safe cracked · +$'+amt,'cash');thud(0.3);hrNoise(l.x,l.z,l.noise);
-  if(HR.res.some(p=>p.mode!=='sleep'&&p.mode!=='out'&&p.mode!=='calm'))addCrime(1,'Burglary');}
 
 function start(){
   S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});

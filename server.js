@@ -58,14 +58,14 @@ wss.on('connection', (ws) => {
   const id = 'p' + Math.random().toString(36).slice(2, 10);
   const client = { id, ws, p: {}, alive: true };
   clients.set(id, client);
-  ws.send(JSON.stringify({ t: 'hello', id }));
+  ws.send(JSON.stringify({ t: 'hello', id, now: Date.now() }));
   dirty = true;
 
   ws.on('pong', () => { client.alive = true; });
   ws.on('message', (buf) => {
     let msg;
     try { msg = JSON.parse(buf); } catch (e) { return; }
-    if (msg && msg.t === 'ping') { if (typeof msg.c === 'number') ws.send(JSON.stringify({ t: 'pong', c: msg.c })); return; }
+    if (msg && msg.t === 'ping') { if (typeof msg.c === 'number') ws.send(JSON.stringify({ t: 'pong', c: msg.c, s: Date.now() })); return; }
     if (!msg || msg.t !== 'p' || !msg.d || typeof msg.d !== 'object' || Array.isArray(msg.d)) return;
     const d = {};
     for (const key of Object.keys(msg.d).slice(0, 32)) {
