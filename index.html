@@ -299,7 +299,7 @@ const SWAMP_POOLS=[];for(const w of SWAMPS)for(let k=0;k<12;k++){const a=Math.ra
 const inSwampWater=(x,z)=>{for(const p of SWAMP_POOLS){const dx=x-p.x,dz=z-p.z;if(dx*dx+dz*dz<p.r*p.r)return true;}return false;};
 const swampFactor=(x,z)=>{let f=0;for(const w of SWAMPS)f=Math.max(f,1-clamp((Math.hypot(x-w.x,z-w.z)-w.r*0.6)/(w.r*0.7),0,1));return f;};
 const HOODS=[{name:'Heron Point',x:-960,z:-40,hs:115,ax:'x'},{name:'Cypress Park',x:-960,z:-840,hs:110,ax:'z'},{name:'Bayview Estates',x:-250,z:-1000,hs:130,ax:'x'},{name:'Lakewood',x:-300,z:1250,hs:130,ax:'z'},{name:'Willow Creek',x:-2050,z:-300,hs:130,ax:'z'}];HOODS.forEach(h=>{h.walks=[];});
-var ROBH_SRC=[];const HOOD_STREETS=[];const SFLATS={x0:-650,x1:-350,z0:192,z1:430,xs:[-560,-440],zs:[250,345]},SF_WALKS=[],LIFE_SPOTS=[],JOB_YARDS=[],JOBS={crane:null};const SPEEDWAY={x:-1100,z:760,A:130,R:80},STADIUM={x:0,z:600},HOME={x:-890,z:27,yaw:Math.PI};const SPRAWL={cells:new Map(),CS:160,chunks:[]};const CITIES=[{name:'Port Coral',x0:600,x1:1260,z0:-1320,z1:-700,core:[930,-1010],coreR:420,maxH:150,minH:14,style:'glass',spire:true,sign:['#0b3d5c','#ffffff'],gate:[702,-716,0]},{name:'Bay Harbor',x0:980,x1:1500,z0:-330,z1:330,core:[1200,0],coreR:380,maxH:70,minH:10,style:'stone',sign:['#c1121f','#ffffff'],gate:[996,-138,-Math.PI/2]}];
+var ROBH_SRC=[],BENCHES=[],GAS_SPOTS=[];const HOOD_STREETS=[];const SFLATS={x0:-650,x1:-350,z0:192,z1:430,xs:[-560,-440],zs:[250,345]},SF_WALKS=[],LIFE_SPOTS=[],JOB_YARDS=[],JOBS={crane:null};const SPEEDWAY={x:-1100,z:760,A:130,R:80},STADIUM={x:0,z:600},HOME={x:-890,z:27,yaw:Math.PI};const SPRAWL={cells:new Map(),CS:160,chunks:[]};const CITIES=[{name:'Port Coral',x0:600,x1:1260,z0:-1320,z1:-700,core:[930,-1010],coreR:420,maxH:150,minH:14,style:'glass',spire:true,sign:['#0b3d5c','#ffffff'],gate:[702,-716,0]},{name:'Bay Harbor',x0:980,x1:1500,z0:-330,z1:330,core:[1200,0],coreR:380,maxH:70,minH:10,style:'stone',sign:['#c1121f','#ffffff'],gate:[996,-138,-Math.PI/2]}];
 const inCity=(x,z,pad)=>CITIES.find(c=>x>c.x0-(pad||0)&&x<c.x1+(pad||0)&&z>c.z0-(pad||0)&&z<c.z1+(pad||0));const inSprawl=(x,z)=>SPRAWL.cells.has(Math.floor(x/160)+','+Math.floor(z/160));const inHood=(x,z,pad)=>HOODS.some(h=>Math.abs(x-h.x)<h.hs+(pad||0)&&Math.abs(z-h.z)<h.hs+(pad||0));
 const FORESTS=[{x:-1150,z:-1350,r:210},{x:-2150,z:300,r:150}];
 const CHUNKED=[];
@@ -993,7 +993,7 @@ const MARINAS=[];const lm2=c=>new THREE.MeshLambertMaterial({color:c});
      for(let k=0;k<8;k++){const o=-18+k*5,px=x+o*c+15*s,pz=z-o*s+15*c;if(Math.random()<0.45)parkedSpots.push({x:px,z:pz,h:yaw+Math.PI+R(-0.15,0.15)});}
      for(let k=0;k<6;k++){const o=R(-20,20),px=x+o*c+11*s,pz=z-o*s+11*c;box(px,0.05,pz,R(0.8,2.2),0.02,R(0.6,1.4),L(0x15161a),R(0,3),false);}};
    // gas station: canopy, pumps, mini-mart, price sign
-   const gas=(x,z)=>{box(x,5.2,z,20,0.7,12,L(0xf2f2f2));box(x,5.62,z,20.2,0.18,12.2,L(0xd62828));for(const ox of [-8,8])for(const oz of [-4.5,4.5])box(x+ox,2.6,z+oz,0.5,5.2,0.5,L(0xdddddd),0,true,true);
+   const gas=(x,z)=>{GAS_SPOTS.push({x,z});box(x,5.2,z,20,0.7,12,L(0xf2f2f2));box(x,5.62,z,20.2,0.18,12.2,L(0xd62828));for(const ox of [-8,8])for(const oz of [-4.5,4.5])box(x+ox,2.6,z+oz,0.5,5.2,0.5,L(0xdddddd),0,true,true);
      for(const ox of [-5,0,5]){box(x+ox,0.8,z,0.9,1.6,1.6,L(0xd62828),0,true,true);box(x+ox,0.1,z,1.6,0.2,3,L(0xc8c4bb),0,false);}
      box(x,2.2,z-14,16,4.4,9,storeM,Math.PI,true,true);sign(x,4.1,z-9.45,8,1.3,0,'SUNGAS MART','#d62828','#ffffff');
      box(x+12,4,z+8,0.35,8,0.35,L(0x444444),0,true,true);sign(x+12,8.2,z+8,3.4,2.6,Math.PI/2,'3.49','#111111','#ffd166');sign(x+12,9.9,z+8,3.4,0.9,Math.PI/2,'SUNGAS','#d62828','#ffffff');
@@ -1394,6 +1394,7 @@ function updateSignals(dt){SIG.t+=dt;if(SIG.t>SIG_T[SIG.phase]){SIG.t=0;SIG.phas
     for(let k=0;k<4;k++){if(Math.random()<0.7)at('trash',k*W+2.6,0.6);if(Math.random()<0.55)at('hydrant',k*W+rand(10,W-10),0.55);}
     for(let k=0;k<randi(1,3);k++)at('bench',rand(6,L4-6),1.0);
     if(Math.random()<0.5)at('news',rand(6,L4-6),0.7);}
+  BENCHES.push(...place.bench.filter(p=>!underHwy(p.x,p.z)));
   for(const kind in PROPS){const list=place[kind],pr=PROPS[kind];if(!list.length)continue;
     const im=new THREE.InstancedMesh(pr.g,HUMAN_MAT,list.length);
     list.forEach((p,k)=>{if(underHwy(p.x,p.z)){m.makeScale(0,0,0);im.setMatrixAt(k,m);return;}e.set(0,p.yaw,0);q.setFromEuler(e);v.set(p.x,0.25,p.z);m.compose(v,q,one);im.setMatrixAt(k,m);
@@ -1831,6 +1832,8 @@ function shopAction(){
   }
   for(const a of PUB_ACTS){const d=Math.hypot(a.x-player.x,a.z-player.z);if(d<1.8&&Math.abs(a.y-player.y)<1.6&&d<bd){bd=d;best={key:'E',label:typeof a.label==='function'?a.label():a.label,act:a.act};}}
   {const h=hrAction();if(h&&h.dist<bd+0.2)best=h;}
+  {const g=rlAction();if(g&&g.dist<bd+0.5)best=g;}
+  if(!best){const t=rlTalkAction();if(t)best=t;}
   return best;
 }
 function updateShops(dt){
@@ -2659,7 +2662,9 @@ addEventListener('keydown',e=>{if(!S.started)return;if(GAME_KEYS.includes(e.code
   if(S.paused){if(e.code==='KeyM')toggleBigMap();return;}
   switch(e.code){
     case 'KeyF':if(!tryChute())enterExit();break;
-    case 'KeyE':if(player.inCar)horn();else interact();break;
+    case 'KeyE':if(player.inCar){const g=rlGasAction();if(g)g.act();else horn();}else interact();break;
+      case 'KeyG':rlWave();break;case 'KeyC':rlSit();break;case 'KeyY':rlTaxiMenu();break;
+      case 'Digit1':case 'Digit2':case 'Digit3':case 'Digit4':case 'Digit5':case 'Digit6':case 'Digit7':if(RL.taxi)rlTaxiGo(+e.code.slice(5)-1);break;
     case 'KeyR':punch();break;
     case 'KeyH':toggleLights();break;
     case 'KeyV':cycleCam();break;
@@ -3296,7 +3301,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(S.stars>0?dt*2.2:dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateRealLife(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -4153,6 +4158,7 @@ function updateAvatars(dt){if(!AV.ready)return;const t=player.inCar||player;
     if(show){J.obj.visible=true;player.human.g.visible=false;AV.shown=true;J.obj.position.set(player.x,player.y||0,player.z);J.obj.rotation.y=player.h;
       if(e||x){const s=e||x,ph=s.phase,tt=s.t,key=e?'enter':'exit',clip=AV.clips[key];if(clip){avPlay(J,key,0.12);const map=e?{approach:[0,0.12,0.45],open:[0.12,0.35,e.jack?0.22:0.38],pull:[0.35,0.35,0.8],enter:[0.35,0.85,0.55],close:[0.85,1,0.3]}:{open:[0,0.3,0.4],out:[0.3,0.8,0.5],close:[0.8,1,0.3]};
           const m=map[ph]||[0,1,1],k=Math.min(1,tt/m[2]),nt=(m[0]+(m[1]-m[0])*k)*clip.duration;J.act[key].paused=true;J.act[key].time=nt;J.mixer.update(0);}}
+      else if(RL.sit&&rlSitPose(J)){}
       else{const dx=player.x-J.lx,dz=player.z-J.lz,sp=Math.hypot(dx,dz)/Math.max(dt,1e-3);J.sp+=(Math.min(sp,12)-J.sp)*Math.min(1,dt*8);const v=J.sp;
         const wet=inDeepWater(player.x,player.z)&&(player.y||0)<0.4;let k;
         if(wet){k=v>0.6?'swim':'tread';J.obj.position.y=(player.y||0)-(k==='swim'?0.5:1.25);}else k=v>3.4?(S.hp<35&&AV.clips.injured?'injured':'run'):v>0.25?'walk':'idle';
@@ -4504,8 +4510,87 @@ function updateNews(dt){
     if(NEWS.watch&&NEWS.cv)drawNews(NEWS.cv.getContext('2d'),1024,576);}
 }
 
+// ---------- everyday life: talk to anyone, give money, wave, sit on benches, surrender, taxis, gas stations ----------
+var RL={talk:null,sit:null,taxi:null,surT:0,waveT:0};
+function rlFirst(p){return p.life&&p.life.name?p.life.name.split(' ')[0]:'';}
+function rlNearPed(r){let best=null,bd=r;for(const p of peds){if(p.dead||p.state==='down'||p.state==='carried'||p.state==='getup'||!p.h)continue;if(Math.abs(p.x-player.x)>r||Math.abs(p.z-player.z)>r||Math.abs((p.y||0)-player.y)>1.5)continue;const d=Math.hypot(p.x-player.x,p.z-player.z);if(d<bd){bd=d;best=p;}}return best?{p:best,d:bd}:null;}
+function rlNearestShop(x,z,min){let best=null,bd=1e9;for(const s of shops){const d=Math.hypot(s.cx-x,s.cz-z);if(d>min&&d<bd){bd=d;best=s;}}return best?{s:best,d:bd}:null;}
+function rlSay(p,t){say(p,t);toast((rlFirst(p)||'They')+': "'+t+'"');}
+// press E next to someone to talk; keep pressing E to keep the conversation going
+function rlTalkAction(){if(player.inCar||player.inAir||S.deadT>0||HR.cur||(typeof LOBBY!=='undefined'&&LOBBY.cur))return null;const n=rlNearPed(2.4);if(!n)return null;const p=n.p,nm=rlFirst(p)||'them';
+  const on=RL.talk&&RL.talk.p===p;return{key:'E',dist:n.d,label:on?'Keep talking to '+nm+' · G: give $20':'Talk to '+nm,act:()=>rlTalk(p)};}
+function rlTalk(p){const L=p.life||{},hr=S.time*24;if(!RL.talk||RL.talk.p!==p)RL.talk={p,step:0,t:0,x:p.x,z:p.z,y:p.y||0,state:p.state};const T=RL.talk;T.t=0;
+  if(S.stars>0&&p.type!=='cop'){rlSay(p,pick(["Stay away from me!","You're all over the news!","I don't want any trouble!"]));p.state='flee';p.timer=rand(4,7);p.fx=player.x;p.fz=player.z;RL.talk=null;return;}
+  if(p.type==='cop'){if(S.stars>0){rlSay(p,"You're under arrest!");p.state='copchase';p.said=false;RL.talk=null;return;}rlSay(p,pick(['Move along, citizen.','Everything okay here?','Stay out of trouble, alright?','Have a safe day.']));T.step=9;return;}
+  const s=T.step++;
+  if(s===0)rlSay(p,pick(['Hi!','Hey there.','Oh, hello!','Can I help you?'])+" I'm "+(rlFirst(p)||'new here')+'. '+(L.job==='Retired'?"I'm retired.":L.job==='Tourist'?"I'm just visiting.":L.job?"I'm a"+(/^[AEIOU]/i.test(L.job)?'n ':' ')+L.job.toLowerCase()+(L.work?' at '+L.work:'')+'.':''));
+  else if(s===1)rlSay(p,(typeof lifeLine==='function'&&lifeLine(p)?'Right now I\'m '+lifeLine(p)+'. ':'')+(L.detail?'Honestly, I\'m '+L.detail+'.':''));
+  else if(s===2){const sh=rlNearestShop(p.x,p.z,30);if(sh){const d=Math.round(sh.d/10)*10;rlSay(p,'Looking for something? '+sh.s.name+' is about '+d+' m that way.');T.point=Math.atan2(sh.s.cx-p.x,sh.s.cz-p.z);T.pointT=2.5;}else rlSay(p,'Not much around here, sorry.');}
+  else if(s===3)rlSay(p,(hr>=21||hr<5?"Kind of late to be out, isn't it? ":GFX.weather==='rain'?'Crazy rain today, huh? ':'Hot one today, huh? ')+(L.from?"I'm originally from "+L.from+'.':''));
+  else{rlSay(p,pick(['Nice talking to you!','Well, I gotta go. Take care!','See you around!','Have a good one!']));RL.talk=null;}}
+function rlGive(){const T=RL.talk;if(!T)return false;const p=T.p;if(S.money<20){toast("You don't have $20",'bad');return true;}addMoney(-20);
+  rlSay(p,p.type==='homeless'?pick(['God bless you!','You just made my whole day.','Thank you, really.']):pick(['Wow, thanks!','Seriously? Thank you!','Uh... thanks, I guess?','That\'s really kind of you.']));T.t=0;return true;}
+// G: wave at people (or give money while talking)
+function rlWave(){if(player.inCar||S.deadT>0)return;if(rlGive())return;RL.waveT=1.2;toast('You wave');let n=0;
+  for(const p of peds){if(p.dead||p.state==='down'||p.state==='flee'||p.type==='cop'&&S.stars>0)continue;const d=Math.hypot(p.x-player.x,p.z-player.z);if(d<12&&Math.abs((p.y||0)-player.y)<2&&Math.random()<0.7&&n<4){n++;say(p,S.stars>0?pick(["Don't come any closer!",'Uh... hi?']):pick(['Hey!','Hi there!','Hello!','Morning!','*waves back*','Do I know you?']));}}}
+// C: sit on a bench (or the ground); move to stand up. Resting slowly heals you.
+function rlSit(){if(RL.sit){RL.sit=null;toast('You stand up');return;}if(player.inCar||player.inAir||S.deadT>0||player.knockT>0||player.swim||S.entry||S.exit)return;
+  let best=null,bd=1.8;for(const b of BENCHES){const d=Math.hypot(b.x-player.x,b.z-player.z);if(d<bd){bd=d;best=b;}}
+  if(best){const fx=Math.sin(best.yaw),fz=Math.cos(best.yaw);RL.sit={x:best.x+fx*0.05,z:best.z+fz*0.05,h:best.yaw,bench:true};}else RL.sit={x:player.x,z:player.z,h:player.h,bench:false};
+  player.x=RL.sit.x;player.z=RL.sit.z;player.h=RL.sit.h;player.vx=player.vz=0;RL.sitFix=null;toast(best?'You sit on the bench · move to get up':'You sit down · move to get up');}
+// X (hold): give yourself up to the police
+function rlCopsNear(){if(cars.some(c=>c.mode==='police'&&c.chase&&Math.hypot(c.x-player.x,c.z-player.z)<45))return true;return peds.some(p=>p.type==='cop'&&!p.dead&&Math.hypot(p.x-player.x,p.z-player.z)<30);}
+function rlSurrender(){const fine=Math.min(S.money,75+S.stars*50);addMoney(-fine);big('SURRENDERED','You gave yourself up · fine: $'+fine);S.deadT=3.2;S.respawn='police';failMission();}
+// Y: call a taxi and pick where to go
+function rlTaxiDests(){const t=player.inCar||player,out=[];const hs=Math.sin(HOME.yaw),hc=Math.cos(HOME.yaw);out.push({name:'Your house',x:HOME.x+hs*10,z:HOME.z+hc*10});
+  if(typeof HOSPITAL!=='undefined')out.push({name:'Sunline General Hospital',hosp:true});
+  const sh=shops.map(s=>({s,d:Math.hypot(s.cx-t.x,s.cz-t.z)})).filter(o=>o.d>120).sort((a,b)=>a.d-b.d);const seen=new Set();
+  for(const o of sh){if(seen.has(o.s.name))continue;seen.add(o.s.name);const dm=o.s.door&&o.s.door.mesh?o.s.door.mesh.position:{x:o.s.cx,z:o.s.cz};let ox=dm.x-o.s.cx,oz=dm.z-o.s.cz;const ol=Math.hypot(ox,oz)||1;out.push({name:o.s.name,x:dm.x+ox/ol*2.5,z:dm.z+oz/ol*2.5});if(out.length>=7)break;}
+  for(const d of out){d.dist=d.hosp?600:Math.hypot(d.x-t.x,d.z-t.z);d.fare=Math.max(8,Math.round(6+d.dist*0.025));}return out;}
+function rlTaxiMenu(){if(RL.taxi){rlTaxiClose();return;}if(player.inCar||player.inAir||S.deadT>0||HR.cur||(typeof LOBBY!=='undefined'&&LOBBY.cur))return;if(S.stars>0){toast('No taxi will stop for you while you are wanted','bad');return;}
+  const ds=rlTaxiDests(),el=document.createElement('div');el.id='taxiMenu';el.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;background:rgba(18,18,22,.94);color:#fff;border:3px solid #ffd60a;border-radius:12px;padding:14px 18px;font:15px "Segoe UI",Arial,sans-serif;min-width:300px;max-width:92vw';
+  el.innerHTML='<b style="color:#ffd60a;font-size:18px">TAXI · where to?</b><div style="opacity:.7;font-size:12px;margin:2px 0 8px">Press a number or click · Y to cancel</div>'+ds.map((d,i)=>'<div data-i="'+i+'" style="padding:6px 8px;margin:3px 0;background:rgba(255,255,255,.07);border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:14px"><span><b>'+(i+1)+'</b> · '+d.name.replace(/[<>&]/g,'')+'</span><span style="color:#9be59b">$'+d.fare+'</span></div>').join('');
+  el.addEventListener('click',e=>{const it=e.target.closest('[data-i]');if(it)rlTaxiGo(+it.dataset.i);});document.body.appendChild(el);RL.taxi={el,ds};}
+function rlTaxiClose(){if(RL.taxi){RL.taxi.el.remove();RL.taxi=null;}}
+function rlTaxiGo(i){const T=RL.taxi;if(!T)return;const d=T.ds[i];if(!d)return;if(S.money<d.fare){toast('Not enough cash for the fare ($'+d.fare+')','bad');return;}rlTaxiClose();RL.sit=null;
+  toast('A taxi pulls up · riding to '+d.name);fadeTo(()=>{addMoney(-d.fare);if(d.hosp){placeAt(HOSPITAL.bi,HOSPITAL.bj,25);}else{player.x=d.x;player.z=d.z;player.y=Math.max(groundAt(d.x,d.z),0)+0.25;}player.vx=player.vz=player.vy=0;toast('You arrive at '+d.name+' · fare $'+d.fare,'cash');});}
+// gas stations: repair + respray (loses a low wanted level if no cop can see you), drinks at the mini-mart
+function rlGasAction(){if(player.inAir||S.deadT>0)return null;const c=player.inCar;
+  for(const g of GAS_SPOTS){if(c){const d=Math.hypot(g.x-c.x,g.z-c.z);if(d>9)continue;const dmg=c.hp<100,hot=S.stars>0;
+      if(hot&&S.stars<=2)return{key:'E',dist:d,label:'Respray the car to lose the cops ($100)',act:()=>rlRespray(c,true)};
+      return{key:'E',dist:d,label:dmg?'Repair and wash the car ($40)':'Wash the car ($10)',act:()=>rlRespray(c,false)};}
+    const mx=g.x,mz=g.z-9.45,d=Math.hypot(mx-player.x,mz-player.z);if(d<2.2)return{key:'E',dist:d,label:'Buy a drink and a snack ($4 · +15 health)',act:()=>{if(S.money<4){toast('Not enough cash','bad');return;}addMoney(-4);S.hp=Math.min(100,S.hp+15);toast('Ice-cold soda and chips · +15 health','cash');}};}return null;}
+function rlRespray(c,spray){const cost=spray?100:c.hp<100?40:10;if(S.money<cost){toast('Not enough cash ($'+cost+')','bad');return;}
+  if(spray&&rlCopsNear()){toast('Too hot! Lose the cops first, they can see you','bad');return;}addMoney(-cost);c.vx=c.vz=0;c.s=0;
+  fadeTo(()=>{c.hp=100;if(spray){const col=pick([0xc1121f,0x1d3557,0x2a9d8f,0xe9c46a,0x111111,0xf4f4f4,0x6a4c93,0xf77f00]);if(c.body&&c.body.material&&c.body.material.color){c.body.material=c.body.material.clone();c.body.material.color.setHex(col);}for(const m of (c.paint||[]))if(m.material&&m.material.color){m.material=m.material.clone();m.material.color.setHex(col);}
+      S.stars=0;S.heatT=0;for(const k of cars)if(k.mode==='police')k.chase=false;toast('New paint job · the cops lost you','cash');}else toast(cost===10?'Squeaky clean':'Repaired and washed · good as new','cash');});}
+function rlAction(){return rlGasAction()||null;}
+function updateRealLife(dt){
+  // conversation partner stops, faces you, points the way
+  const T=RL.talk;if(T){const p=T.p;T.t+=dt;if(T.t>12||p.dead||p.state==='flee'||p.state==='down'||Math.hypot(p.x-player.x,p.z-player.z)>5||player.inCar){RL.talk=null;}
+    else{p.x=T.x;p.z=T.z;const want=T.pointT>0?T.point:Math.atan2(player.x-p.x,player.z-p.z);p.h.g.position.set(p.x,p.y||0,p.z);p.h.g.rotation.y+=angDiff(p.h.g.rotation.y,want)*Math.min(1,dt*8);
+      if(T.pointT>0){T.pointT-=dt;if(p.h.shR)p.h.shR.rotation.set(-1.5,0,0.1);}if(p.av&&p.av.obj){p.av.obj.position.set(p.x,p.y||0,p.z);p.av.obj.rotation.y=p.h.g.rotation.y;}}}
+  // sitting: stay put, heal slowly, stand up when you move
+  const S2=RL.sit;if(S2){const mv=keys.KeyW||keys.KeyA||keys.KeyS||keys.KeyD||keys.ArrowUp||keys.ArrowDown||keys.ArrowLeft||keys.ArrowRight||keys.Space;
+    if(mv||player.inCar||player.knockT>0||S.deadT>0||S.entry){RL.sit=null;}else{player.x=S2.x;player.z=S2.z;player.h=S2.h;player.vx=player.vz=0;if(S.hp<100)S.hp=Math.min(100,S.hp+dt*1.5);
+      if(!AV.shown&&player.human){seatPose(player.human,1);player.human.g.position.y=(player.y||0)-0.25;}}}
+  // hold X near the police to surrender
+  if(keys.KeyX&&S.stars>0&&!player.inCar&&S.deadT<=0&&rlCopsNear()){RL.surT+=dt;if(RL.surT>0.1&&RL.surT-dt<=0.1)toast('Hands up... keep holding X to surrender');if(RL.surT>1.5){RL.surT=0;rlSurrender();}}else if(!keys.KeyX)RL.surT=0;
+  else if(keys.KeyX&&S.stars>0&&!rlCopsNear()&&RL.surT===0){RL.surT=-1;toast('No police around to surrender to');}
+  if(RL.taxi&&(player.inCar||S.deadT>0))rlTaxiClose();
+  if(player.inCar){const g=rlGasAction();if(g&&!RL.gasHint){RL.gasHint=true;toast('Press E: '+g.label);}else if(!g)RL.gasHint=false;}}
+// Josh's seated pose: hold the last frame of the "get in the car" animation, then line his hips up with the seat
+function rlHipsYaw(J){J.obj.updateMatrixWorld(true);const q=new THREE.Quaternion();J.hips.getWorldQuaternion(q);const f=new THREE.Vector3(0,0,1).applyQuaternion(q);return Math.atan2(f.x,f.z);}
+function rlSitPose(J){const clip=AV.clips.enter;if(!clip||!RL.sit)return false;if(!J.hips)J.obj.traverse(o=>{if(!J.hips&&/Hips$/.test(o.name))J.hips=o;});
+  if(!RL.sitFix){RL.sitFix={bind:J.hips?rlHipsYaw(J)-J.obj.rotation.y:0};}
+  const F=RL.sitFix;if(J.cur!=='enter'){avPlay(J,'enter',0);for(const k in J.act)if(k!=='enter')J.act[k].stop();}const A=J.act.enter;A.setEffectiveWeight(1);A.paused=true;A.time=clip.duration*0.97;
+  J.obj.rotation.y=RL.sit.h+(F.r||0);J.obj.position.set(RL.sit.x+(F.dx||0),player.y||0,RL.sit.z+(F.dz||0));J.mixer.update(0);
+  if(J.hips&&F.r==null){let r=RL.sit.h-(rlHipsYaw(J)-F.bind);r=Math.atan2(Math.sin(r),Math.cos(r));F.r=r;J.obj.rotation.y=RL.sit.h+r;J.obj.position.set(RL.sit.x,player.y||0,RL.sit.z);J.obj.updateMatrixWorld(true);
+    const hp=new THREE.Vector3();J.hips.getWorldPosition(hp);const fx=Math.sin(RL.sit.h),fz=Math.cos(RL.sit.h);F.dx=(RL.sit.x-fx*0.08)-hp.x;F.dz=(RL.sit.z-fz*0.08)-hp.z;J.obj.position.set(RL.sit.x+F.dx,player.y||0,RL.sit.z+F.dz);}
+  return true;}
+
 function start(){
-  S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
   camYaw=player.h+Math.PI;
   toast('Sunny Mart is right next to you · purple $ on the map = shops');
