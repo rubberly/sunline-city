@@ -299,7 +299,7 @@ const SWAMP_POOLS=[];for(const w of SWAMPS)for(let k=0;k<12;k++){const a=Math.ra
 const inSwampWater=(x,z)=>{for(const p of SWAMP_POOLS){const dx=x-p.x,dz=z-p.z;if(dx*dx+dz*dz<p.r*p.r)return true;}return false;};
 const swampFactor=(x,z)=>{let f=0;for(const w of SWAMPS)f=Math.max(f,1-clamp((Math.hypot(x-w.x,z-w.z)-w.r*0.6)/(w.r*0.7),0,1));return f;};
 const HOODS=[{name:'Heron Point',x:-960,z:-40,hs:115,ax:'x'},{name:'Cypress Park',x:-960,z:-840,hs:110,ax:'z'},{name:'Bayview Estates',x:-250,z:-1000,hs:130,ax:'x'},{name:'Lakewood',x:-300,z:1250,hs:130,ax:'z'},{name:'Willow Creek',x:-2050,z:-300,hs:130,ax:'z'}];HOODS.forEach(h=>{h.walks=[];});
-var ROBH_SRC=[],BENCHES=[],GAS_SPOTS=[];const HOOD_STREETS=[];const SFLATS={x0:-650,x1:-350,z0:192,z1:430,xs:[-560,-440],zs:[250,345]},SF_WALKS=[],LIFE_SPOTS=[],JOB_YARDS=[],JOBS={crane:null};const SPEEDWAY={x:-1100,z:760,A:130,R:80},STADIUM={x:0,z:600},HOME={x:-890,z:27,yaw:Math.PI};const SPRAWL={cells:new Map(),CS:160,chunks:[]};const CITIES=[{name:'Port Coral',x0:600,x1:1260,z0:-1320,z1:-700,core:[930,-1010],coreR:420,maxH:150,minH:14,style:'glass',spire:true,sign:['#0b3d5c','#ffffff'],gate:[702,-716,0]},{name:'Bay Harbor',x0:980,x1:1500,z0:-330,z1:330,core:[1200,0],coreR:380,maxH:70,minH:10,style:'stone',sign:['#c1121f','#ffffff'],gate:[996,-138,-Math.PI/2]}];
+var ROBH_SRC=[],BENCHES=[],GAS_SPOTS=[],MTN_LIST=[];const HOOD_STREETS=[];const SFLATS={x0:-650,x1:-350,z0:192,z1:430,xs:[-560,-440],zs:[250,345]},SF_WALKS=[],LIFE_SPOTS=[],JOB_YARDS=[],JOBS={crane:null};const SPEEDWAY={x:-1100,z:760,A:130,R:80},STADIUM={x:0,z:600},HOME={x:-890,z:27,yaw:Math.PI};const SPRAWL={cells:new Map(),CS:160,chunks:[]};const CITIES=[{name:'Port Coral',x0:600,x1:1260,z0:-1320,z1:-700,core:[930,-1010],coreR:420,maxH:150,minH:14,style:'glass',spire:true,sign:['#0b3d5c','#ffffff'],gate:[702,-716,0]},{name:'Bay Harbor',x0:980,x1:1500,z0:-330,z1:330,core:[1200,0],coreR:380,maxH:70,minH:10,style:'stone',sign:['#c1121f','#ffffff'],gate:[996,-138,-Math.PI/2]}];
 const inCity=(x,z,pad)=>CITIES.find(c=>x>c.x0-(pad||0)&&x<c.x1+(pad||0)&&z>c.z0-(pad||0)&&z<c.z1+(pad||0));const inSprawl=(x,z)=>SPRAWL.cells.has(Math.floor(x/160)+','+Math.floor(z/160));const inHood=(x,z,pad)=>HOODS.some(h=>Math.abs(x-h.x)<h.hs+(pad||0)&&Math.abs(z-h.z)<h.hs+(pad||0));
 const FORESTS=[{x:-1150,z:-1350,r:210},{x:-2150,z:300,r:150}];
 const CHUNKED=[];
@@ -1081,7 +1081,7 @@ const MARINAS=[];const lm2=c=>new THREE.MeshLambertMaterial({color:c});
   const MTN=[[-720,-620,110,120],[-560,-800,90,95],[-760,580,120,130],[-560,800,90,90]];
   for(let n=0;n<500&&MTN.length<8;n++){const north=Math.random()<0.5,x=rand(LAND.cx-LAND.hx+200,-1250),z=north?rand(-LAND.hz+250,-600):rand(650,LAND.hz-250),r=rand(120,240),h=rand(140,280);
     if(landSDF(x,z)>-(r+110)||nearTown(x,z,r+60)||inFarm(x,z,r+40)||inSwamp(x,z,r+40)||inHood(x,z,r+60)||Math.hypot(x-SPEEDWAY.x,z-SPEEDWAY.z)<r+280||MTN.some(m=>Math.hypot(m[0]-x,m[1]-z)<m[2]+r))continue;MTN.push([x,z,r,h]);}
-  for(const [mx,mz,r,h] of MTN){const g=new THREE.ConeGeometry(r,h,28,8);const p=g.attributes.position,cols=[];
+  MTN_LIST.push(...MTN);for(const [mx,mz,r,h] of MTN){const g=new THREE.ConeGeometry(r,h,28,8);const p=g.attributes.position,cols=[];
     for(let i=0;i<p.count;i++){const y=p.getY(i),t=(y+h/2)/h;if(t<0.98){const k=1+(Math.sin(i*12.9898)*0.5)*0.18;p.setX(i,p.getX(i)*k);p.setZ(i,p.getZ(i)*k);}
       const c=t>0.82?[0.95,0.95,0.97]:t>0.45?[0.45,0.42,0.38]:[0.32,0.5,0.26];cols.push(...c);}
     g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));g.computeVertexNormals();
@@ -1833,6 +1833,7 @@ function shopAction(){
   for(const a of PUB_ACTS){const d=Math.hypot(a.x-player.x,a.z-player.z);if(d<1.8&&Math.abs(a.y-player.y)<1.6&&d<bd){bd=d;best={key:'E',label:typeof a.label==='function'?a.label():a.label,act:a.act};}}
   {const h=hrAction();if(h&&h.dist<bd+0.2)best=h;}
   {const g=rlAction();if(g&&g.dist<bd+0.5)best=g;}
+  {const fa=findsAction();if(fa&&fa.dist<bd+1.5)best=fa;}
   if(!best){const t=rlTalkAction();if(t)best=t;}
   return best;
 }
@@ -3301,7 +3302,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(S.stars>0?dt*2.2:dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateRealLife(dt);updateFree(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateRealLife(dt);updateFree(dt);updateFinds(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -4604,6 +4605,7 @@ function freeOpen(){
   h+=sec('TELEPORT')+spots.map((s,i)=>b('tp:'+i,s.n)).join('');
   h+=sec('TIME & WEATHER')+[['Morning',0.3],['Noon',0.5],['Sunset',0.76],['Night',0.95]].map(([l,t])=>b('time:'+t,l)).join('')+['clear','cloudy','rain'].filter(w=>typeof WEATHERS==='undefined'||WEATHERS[w]).map(w=>b('wx:'+w,w[0].toUpperCase()+w.slice(1))).join('');
   h+=sec('POLICE')+b('wanted:0','Clear wanted level')+b('wanted:1','+1 star')+b('wanted:5','5 stars')+b('never','Never wanted',FREE.never);
+  h+=sec('HIDDEN PLACES OUTSIDE THE CITY · '+findsCount()+'/'+FINDS.list.length+' FOUND')+b('hint','Where is the nearest one?');
   h+=sec('YOU')+b('god','Invincible',FREE.god)+b('jump','Super jump',FREE.jump)+b('speed','Super speed',FREE.speed)+b('money','+$10,000')+b('heal','Full health')+b('fix','Fix my car');
   if(!FREE.el){const el=document.createElement('div');el.id='freeMenu';el.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:46;width:min(720px,94vw);max-height:86vh;overflow:auto;background:rgba(14,16,22,.95);color:#fff;border:2px solid #2dd36f;border-radius:14px;padding:14px 16px;font:14px Segoe UI,Arial,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.6)';
     el.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(t)freeDo(t.dataset.a);});document.body.appendChild(el);FREE.el=el;}
@@ -4629,6 +4631,7 @@ function freeDo(a){const t=player.inCar||player;
   if(a==='god'){FREE.god=!FREE.god;toast('Invincible: '+(FREE.god?'ON':'OFF'));freeOpen();return;}
   if(a==='jump'){FREE.jump=!FREE.jump;toast('Super jump: '+(FREE.jump?'ON':'OFF'));freeOpen();return;}
   if(a==='speed'){FREE.speed=!FREE.speed;toast('Super speed: '+(FREE.speed?'ON':'OFF'));freeOpen();return;}
+  if(a==='hint'){freeClose();findsNearestHint();return;}
   if(a==='money'){addMoney(10000);toast('+$10,000','cash');return;}
   if(a==='heal'){S.hp=100;toast('Full health','cash');return;}
   if(a==='fix'){const c=player.inCar||MP.lastCar;if(c){c.hp=100;toast('Car repaired','cash');}else toast('Get in a car first','bad');return;}}
@@ -4644,8 +4647,82 @@ function updateFree(dt){
     if(FREE.speed&&!RL.sit){const v=Math.hypot(player.vx,player.vz);if(v>0.5){player.x+=player.vx*dt*1.6;player.z+=player.vz*dt*1.6;}}}
   FREE.lastVy=player.vy;}
 
+// ---------- hidden places outside the city: small spots to find in the swamps, forests, mountains, countryside and the Keys ----------
+var FINDS={list:[],found:{},hintT:0,near:null};
+const FIND_TYPES=[
+  {k:'shack',name:"Hermit's Shack",lore:'Boarded-up windows, a rocking chair, and a note: "Gone fishing. Forever."'},
+  {k:'ufo',name:'Strange Crash Site',lore:'Something metal and round is half buried in the mud. It is still warm.'},
+  {k:'plane',name:'Old Plane Wreck',lore:'A small plane that never made it to the airport. The logbook ends in 1987.'},
+  {k:'camp',name:'Deserted Campsite',lore:'The fire is still smoking and someone left their guitar behind.'},
+  {k:'chest',name:"Pirate's Chest",lore:'An old sea chest buried under a palm tree.',chest:true},
+  {k:'stones',name:'Stone Circle',lore:'Nobody knows who put these stones here or why.'},
+  {k:'tower',name:'Fire Lookout Tower',lore:'An old ranger tower. You can see half the island from up there.'},
+  {k:'car',name:"Rusted '57 Cruiser",lore:'A classic car slowly being swallowed by vines. The keys are still in it.'},
+  {k:'still',name:'Moonshine Still',lore:'Copper pot, jugs, and a hand-painted sign: KEEP OUT.'},
+  {k:'gator',name:"World's Biggest Gator",lore:'A giant fibreglass gator from an old roadside attraction. Selfie spot!'},
+  {k:'bottle',name:'Message in a Bottle',lore:'A bottle washed up with a rolled-up letter inside.',read:'"If you find this, I hid my savings by the stone circle. Good luck. - Ray"'},
+  {k:'bigfoot',name:'Bigfoot Tracks',lore:'Huge footprints in the mud... and a tuft of brown fur.'},
+  {k:'radar',name:'Abandoned Radar Station',lore:'Rusty dishes still pointing at the sky. The door is chained shut.'},
+  {k:'mailbox',name:'Mailbox to Nowhere',lore:'A mailbox in the middle of nowhere. There is a letter inside.',read:'"Dear whoever lives here: the swamp ate your house. Sorry. - The Mailman"'},
+  {k:'capsule',name:'Time Capsule',lore:'A dented metal tube: "Pine Hills Elementary, class of 1999. Open in 2049."',chest:true},
+  {k:'hammock',name:"Smuggler's Hideout",lore:'A hammock, a cooler and crates stamped with a fake company name.',chest:true},
+  {k:'boat',name:'Beached Shrimp Boat',lore:'Hurricane season left this boat high and dry.'},
+  {k:'altar',name:'Swamp Witch Hut',lore:'Bottles hanging from the trees and a cauldron that smells like old socks.'}];
+function findsPlace(R){const pts=[];const rr=(a,b)=>a+R()*(b-a);const ok=(x,z,water)=>{if(x<BOUNDS.x0+40||x>BOUNDS.x1-40||z<BOUNDS.z0+40||z>BOUNDS.z1-40)return false;if(inSprawl(x,z)||inCity(x,z,40)||nearHwy(x,z,20)||roofAt(x,z)!==0)return false;
+    if(!water&&inDeepWater(x,z))return false;if(SWAMP_POOLS.some(p=>Math.hypot(p.x-x,p.z-z)<p.r+5))return false;if(MTN_LIST.some(m=>Math.hypot(m[0]-x,m[1]-z)<m[2]+14))return false;
+    if(Math.hypot(x-HOME.x,z-HOME.z)<200||Math.hypot(x-SPEEDWAY.x,z-SPEEDWAY.z)<SPEEDWAY.A+160)return false;return !pts.some(p=>Math.hypot(p.x-x,p.z-z)<170);};
+  const tryAt=(cx,cz,r,n,tag)=>{let made=0;for(let i=0;i<120&&made<n;i++){const a=R()*6.283,d=r*(0.25+R()*0.75),x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;if(ok(x,z)){pts.push({x,z,tag});made++;}}};
+  for(const w of SWAMPS)tryAt(w.x,w.z,w.r+60,4,'swamp');for(const f of FORESTS)tryAt(f.x,f.z,f.r+40,3,'forest');for(const m of MTN_LIST)tryAt(m[0],m[1],m[2]+70,1,'mountain');
+  for(const k of KEYS)tryAt(k.x,k.z,k.r*0.7,1,'keys');for(let i=0;i<400&&pts.length<26;i++){const x=rr(BOUNDS.x0+80,BOUNDS.x1-80),z=rr(BOUNDS.z0+80,BOUNDS.z1-80);if(ok(x,z))pts.push({x,z,tag:'country'});}
+  return pts;}
+function findsBuild(f){const g=new THREE.Group();g.position.set(f.x,0,f.z);g.rotation.y=f.yaw;g.visible=false;scene.add(g);const L=c=>new THREE.MeshLambertMaterial({color:c});
+  const box=(w,h,d,x,y,z,c,ry,rz)=>{const b=new THREE.Mesh(BOX1,typeof c==='number'?L(c):c);b.scale.set(w,h,d);b.position.set(x,y,z);if(ry)b.rotation.y=ry;if(rz)b.rotation.z=rz;b.castShadow=true;g.add(b);return b;};
+  const cyl=(r1,r2,h,x,y,z,c,seg)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,seg||10),typeof c==='number'?L(c):c);m.position.set(x,y,z);m.castShadow=true;g.add(m);return m;};
+  const ball=(r,x,y,z,c)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),typeof c==='number'?L(c):c);m.position.set(x,y,z);g.add(m);return m;};
+  const glow=c=>new THREE.MeshBasicMaterial({color:c});const W=0x6b4a2a,DW=0x4a3420;
+  switch(f.t.k){
+    case 'shack':box(4,2.8,3.4,0,1.4,0,0x7a6048);box(4.6,0.2,4,0,2.9,0,DW,0,0.18);for(const x of [-1,1])box(0.8,0.7,0.08,x,1.6,1.72,DW);box(0.9,1.9,0.08,0,0.95,1.72,0x3a2a1a);box(0.6,0.9,0.6,1.6,0.45,2.4,W);break;
+    case 'ufo':{const s=cyl(3.2,1.2,0.9,0,0.8,0,0x9aa3ad,24);s.rotation.z=0.35;const d=ball(1.3,0.3,1.5,0,new THREE.MeshLambertMaterial({color:0x7fffd4,emissive:0x2affc6,emissiveIntensity:0.8}));for(let i=0;i<8;i++)box(0.3,0.15,0.3,Math.cos(i)*3,0.2,Math.sin(i)*3,glow(0x7fffd4));box(9,0.05,6,0,0.03,0,0x3d2f22);break;}
+    case 'plane':box(1.6,1.6,8,0,0.8,0,0xe8e8e8,0,0.2);box(10,0.15,1.8,0.6,1.2,-0.5,0xd62828,0.15,0.25);box(3,0.12,1,0,1.4,-3.6,0xe8e8e8);box(0.12,1.4,1,0,2,-3.8,0xd62828);break;
+    case 'camp':{const t=new THREE.Mesh(new THREE.ConeGeometry(1.6,2,4),L(0x2a9d8f));t.position.set(-2,1,0);t.rotation.y=0.78;g.add(t);for(let i=0;i<6;i++)box(0.12,0.12,0.8,Math.cos(i)*0.4,0.08,Math.sin(i)*0.4,DW,i);ball(0.25,0,0.25,0,glow(0xff7b00));box(0.35,0.08,1,1.4,0.1,0.6,0x8b5a2b,0.6);box(0.9,0.4,0.4,1.6,0.2,-1.2,0x555555);break;}
+    case 'chest':box(1.1,0.6,0.7,0,0.3,0,0x7a4a1a);box(1.15,0.12,0.75,0,0.62,0,0x5a3412);box(0.15,0.25,0.06,0,0.45,0.36,0xd4af37);cyl(0.15,0.22,5,1.6,2.5,-0.8,0x8b6b4a);for(let i=0;i<5;i++)box(2.2,0.05,0.5,1.6+Math.cos(i*1.25)*1,5,-0.8+Math.sin(i*1.25)*1,0x2e7d32,i*1.25,0.4);break;
+    case 'stones':for(let i=0;i<9;i++){const a=i/9*6.283;box(0.8,rand(1.6,2.8),0.5,Math.cos(a)*4,1.1,Math.sin(a)*4,0x8a8a85,-a);}box(1.4,0.5,1,0,0.25,0,0x777770);break;
+    case 'tower':for(const [x,z] of [[-1.2,-1.2],[1.2,-1.2],[-1.2,1.2],[1.2,1.2]])box(0.2,9,0.2,x,4.5,z,W);box(3.4,0.2,3.4,0,9,0,W);box(3.4,1.8,3.4,0,10,0,0x8b6b4a);box(4,0.2,4,0,11,0,0x5a3a22);for(let y=1;y<9;y+=1)box(0.8,0.06,0.25,1.6,y,0,W);break;
+    case 'car':box(1.9,0.8,4.6,0,0.6,0,0x8a4a2a);box(1.7,0.6,2.2,0,1.25,-0.2,0x6a3a20);for(const [x,z] of [[-0.95,1.4],[0.95,1.4],[-0.95,-1.4],[0.95,-1.4]]){const w=cyl(0.38,0.38,0.25,x,0.38,z,0x222222);w.rotation.z=1.57;}for(let i=0;i<6;i++)box(0.1,rand(0.5,1.4),0.1,rand(-1,1),0.6,rand(-2,2),0x2e7d32);break;
+    case 'still':cyl(0.7,0.8,1.2,0,0.6,0,0xb87333,14);cyl(0.1,0.1,1.6,0.9,1.1,0,0xb87333);for(let i=0;i<4;i++)cyl(0.18,0.2,0.45,-1+i*0.5,0.22,1,0xd8c9a8);box(1.2,0.7,0.06,1.6,1.2,-0.8,0xf4f1ea,0.4);break;
+    case 'gator':box(9,1.2,1.6,0,0.8,0,0x3a6b35);box(2.6,0.6,1.3,5.4,0.7,0,0x3a6b35);for(const x of [-2.5,2.5])for(const z of [-1,1])box(0.4,0.8,0.4,x,0.4,z,0x3a6b35);box(5,0.4,0.6,-6.4,0.5,0,0x3a6b35,0.1);ball(0.2,6,1.15,0.45,glow(0xffff66));ball(0.2,6,1.15,-0.45,glow(0xffff66));box(3,1.2,0.1,0,2.4,-2,0xffd60a);break;
+    case 'bottle':cyl(0.08,0.12,0.45,0,0.12,0,new THREE.MeshLambertMaterial({color:0x6fbf73,transparent:true,opacity:0.7})).rotation.z=1.4;box(2,0.02,2,0,0.01,0,0xe8d8a8);break;
+    case 'bigfoot':for(let i=0;i<7;i++)box(0.5,0.03,1.1,(i%2?0.5:-0.5),0.02,i*1.6-4,0x3a2a1a);ball(0.25,0.8,0.25,4,0x6b4a2a);break;
+    case 'radar':for(let i=0;i<3;i++){cyl(0.15,0.2,4,i*5-5,2,0,0x8a8a8a);const d=new THREE.Mesh(new THREE.SphereGeometry(2,14,8,0,6.283,0,1.2),new THREE.MeshLambertMaterial({color:0xc8c8c8,side:THREE.DoubleSide}));d.position.set(i*5-5,4.4,0);d.rotation.x=-1.1;g.add(d);}box(4,2.6,3,0,1.3,-5,0x8a8f84);break;
+    case 'mailbox':box(0.12,1.1,0.12,0,0.55,0,W);box(0.5,0.4,0.7,0,1.25,0,0x1f3550);box(0.06,0.3,0.05,0.28,1.35,0.2,0xc1121f);break;
+    case 'capsule':{const c=cyl(0.3,0.3,1.2,0,0.25,0,0x9aa0a6);c.rotation.z=1.2;box(1.6,0.05,1.6,0,0.02,0,0x5a4632);break;}
+    case 'hammock':for(const x of [-2,2])cyl(0.15,0.2,3.5,x,1.75,0,0x8b6b4a);box(3.6,0.08,0.9,0,1.1,0,0xc0392b);box(0.8,0.5,0.5,0,0.25,1.4,0x2a9d8f);for(let i=0;i<3;i++)box(1,0.8,0.8,-1.2+i*1.1,0.4,-1.6,0x9c7a4a);break;
+    case 'boat':{const h=box(3,1.6,9,0,0.9,0,0xf4f1ea,0,0.25);box(2,1.8,2.6,0,2.2,-1,0x1f3550,0,0.25);box(0.12,5,0.12,0,3.5,2,0x8a6a4a,0,0.25);break;}
+    case 'altar':box(3,2.4,3,0,1.2,0,0x5a4a3a);box(3.6,0.2,3.6,0,2.5,0,0x3a2a1a,0.78);cyl(0.5,0.4,0.6,2.4,0.3,0.6,0x222222);ball(0.35,2.4,0.65,0.6,glow(0x66ff66));for(let i=0;i<6;i++)cyl(0.06,0.09,0.25,-2+i*0.7,2.1,2.2,glow([0x6fbf73,0x4cc9f0,0xff6b6b][i%3]));break;}
+  return g;}
+const BOX1=new THREE.BoxGeometry(1,1,1);
+function findsSetup(){try{FINDS.found=JSON.parse(localStorage.getItem('sunline-finds')||'{}')||{};}catch(e){FINDS.found={};}
+  const R=hrRand(20261127);const pts=findsPlace(R);const types=FIND_TYPES.slice().sort(()=>R()-0.5);
+  pts.forEach((p,i)=>{const t=i<types.length?types[i]:FIND_TYPES[i%FIND_TYPES.length];const id=t.k+(i>=types.length?i:'');
+    const f={id,t,x:p.x,z:p.z,yaw:R()*6.283,tag:p.tag,name:t.name+(i>=types.length?' '+(Math.floor(i/types.length)+1):''),opened:false};f.g=findsBuild(f);FINDS.list.push(f);});
+  // a little "?" beacon floats over undiscovered places when you get close
+  FINDS.beacon=new THREE.Mesh(new THREE.OctahedronGeometry(0.6),new THREE.MeshBasicMaterial({color:0xffd60a}));FINDS.beacon.visible=false;scene.add(FINDS.beacon);}
+function findsCount(){return FINDS.list.filter(f=>FINDS.found[f.id]).length;}
+function findsSave(){try{localStorage.setItem('sunline-finds',JSON.stringify(FINDS.found));}catch(e){}}
+function findsAction(){if(player.inCar||player.inAir||S.deadT>0)return null;let best=null;
+  for(const f of FINDS.list){if(!FINDS.found[f.id])continue;const d=Math.hypot(f.x-player.x,f.z-player.z);if(d>3.2)continue;
+    if(f.t.chest&&!f.opened)best={key:'E',dist:d,label:f.t.k==='capsule'?'Open the time capsule':'Open it',act:()=>{f.opened=true;const amt=randi(5,20)*100;addMoney(amt);big(f.name.toUpperCase(),'Inside: $'+amt.toLocaleString(),true);}};
+    else if(f.t.read)best={key:'E',dist:d,label:'Read the letter',act:()=>toast(f.t.read)};}return best;}
+function findsNearestHint(){const t=player.inCar||player;let best=null,bd=1e9;for(const f of FINDS.list){if(FINDS.found[f.id])continue;const d=Math.hypot(f.x-t.x,f.z-t.z);if(d<bd){bd=d;best=f;}}
+  if(!best){toast('You found every hidden place!','cash');return;}const a=Math.atan2(best.x-t.x,best.z-t.z),dirs=['north','north-east','east','south-east','south','south-west','west','north-west'];
+  const i=((Math.round(((Math.PI-a)/(Math.PI*2))*8)%8)+8)%8;toast('Something interesting is about '+Math.round(bd/50)*50+' m '+dirs[i]+' of you'+(best.tag==='swamp'?' (in the swamp)':best.tag==='forest'?' (in the woods)':best.tag==='keys'?' (on the Keys)':best.tag==='mountain'?' (near the mountains)':''));}
+function updateFinds(dt){if(!FINDS.list.length)return;const t=player.inCar||player;FINDS.hintT-=dt;let near=null,nd=1e9;
+  for(const f of FINDS.list){const d=Math.hypot(f.x-t.x,f.z-t.z);f.g.visible=d<400;if(d<nd&&!FINDS.found[f.id]){nd=d;near=f;}
+    if(!FINDS.found[f.id]&&d<10){FINDS.found[f.id]=true;findsSave();addMoney(250);big('DISCOVERED: '+f.name.toUpperCase(),f.t.lore+'  ·  '+findsCount()+'/'+FINDS.list.length+' found  ·  +$250',true);thud(0.2);}}
+  if(near&&nd<140){FINDS.beacon.visible=true;FINDS.beacon.position.set(near.x,6+Math.sin(clock*2)*0.6,near.z);FINDS.beacon.rotation.y+=dt*2;if(FINDS.near!==near){FINDS.near=near;toast('You spot something out here... look for the yellow marker');}}else FINDS.beacon.visible=false;}
+
 function start(){
-  S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · E: horn · B: free play (do whatever you want)'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  S.started=true;mpInit();findsSetup();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · E: horn · B: free play (do whatever you want)'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setTimeout(()=>toast('There are '+FINDS.list.length+' hidden places out in the swamps, woods and countryside · B for a hint'),24000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   {const fb=document.createElement('button');fb.id='freeBtn';fb.textContent='FREE PLAY (B)';fb.style.cssText='position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:30;padding:5px 12px;border:0;border-radius:8px;background:rgba(45,211,111,.85);color:#062;font:700 12px Segoe UI,Arial,sans-serif;cursor:pointer';fb.addEventListener('click',e=>{e.stopPropagation();freeToggle();});document.body.appendChild(fb);}
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
   camYaw=player.h+Math.PI;
