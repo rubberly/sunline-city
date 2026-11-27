@@ -32,6 +32,12 @@ const server = http.createServer((req, res) => {
     res.end(gamePage());
     return;
   }
+  // Lantern Court Mall (the user's 3D mall project), opened from the downtown mall building
+  if (url === '/mall' || url === '/mall/' || url === '/mall/index.html') {
+    if (url === '/mall') { res.writeHead(301, { Location: '/mall/' }); res.end(); return; }
+    fs.readFile(path.join(__dirname, 'mall', 'index.html'), (err, buf) => { if (err) { res.writeHead(404); res.end('Not found'); return; } res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' }); res.end(buf); });
+    return;
+  }
   if (url.startsWith('/models/')) {
     const rel = decodeURIComponent(url.slice('/models/'.length));
     const name = rel;

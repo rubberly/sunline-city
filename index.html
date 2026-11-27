@@ -2079,7 +2079,7 @@ const HALL_TYPES={
         addCrime(3,'Bank robbery');toast('Vault cracked · +$'+amt.toLocaleString(),'cash');S.shake=0.4;});
       for(let z=1;z<=6;z+=5)L.bench(-L.hw+6,z,6);
       for(let k=0;k<5;k++)L.staff(rand(-10,10),rand(-1,8),'shopper',true);}},
-  mall:{name:'PALMVIEW MALL',wall:0xf0e6f0,inner:0xfbf7f2,floor:'tile',fc:['#f7f2ea','#e2d6c4'],sign:['#ff5d8f','#ffffff'],upper:9,
+  mall:{name:'LANTERN COURT MALL',wall:0xf0e6f0,inner:0xfbf7f2,floor:'tile',fc:['#f7f2ea','#e2d6c4'],sign:['#ff5d8f','#ffffff'],upper:9,
     build(L){L.mesh(new THREE.CylinderGeometry(4,4.4,0.8,24),SM.white,0,0.4,0);const w=L.mesh(new THREE.CylinderGeometry(3.6,3.6,0.1,24),new THREE.MeshBasicMaterial({color:0x5ec8e0}),0,0.82,0);L.col(-4.2,-4.2,4.2,4.2,0.9);
       const names=['SHOE PALACE','GADGET HUB','ICE CREAM','BOOK NOOK','STYLE LAB','TOY TOWN'];
       names.forEach((n,i)=>{const side=i<3?-1:1,z=-L.hd+8+(i%3)*11;const t=canvasTex(256,48,(g,w2,h)=>{g.fillStyle=pick(['#ff5d8f','#2a9d8f','#f77f00','#3a86ff','#8338ec','#e63946']);g.fillRect(0,0,w2,h);g.fillStyle='#fff';g.font='bold 24px Arial';g.textAlign='center';g.textBaseline='middle';g.fillText(n,w2/2,h/2);});
@@ -3296,6 +3296,7 @@ function updateHUD(){
 // ---------- loop ----------
 let last=performance.now();
 function frame(now){
+  if(S.inMall){last=now;requestAnimationFrame(frame);return;}
   if(!S.ldone){S.lf=(S.lf||0)+1;if(S.lf===4){S.ldone=true;const l=$('loading');if(l){l.classList.add('done');setTimeout(()=>l.remove(),900);}}}
   const rdt=clamp((now-last)/1000,0,0.05);last=now;pollPad(rdt);const dt=S.paused?0:rdt;clock+=dt;
   updateSky(dt);
@@ -4067,7 +4068,7 @@ function tone(f,dur,type,vol,dest,t0,glide){const t=t0||AC.currentTime,o=AC.crea
 function honk(vol){if(!GX.au||muted)return;const t=AC.currentTime;tone(415,0.4,'square',vol*0.05,null,t);tone(523,0.4,'square',vol*0.04,null,t);}
 function thunder(){if(!GX.au||muted)return;noiseBurst(2.8,70,0.7,0.5);noiseBurst(1.2,160,1,0.25,null,AC.currentTime+0.1);}
 const RADIO_SONGS=[null,{bpm:112,ch:[[57,60,64],[53,57,60],[55,59,62],[52,55,59]],bass:'saw',lead:'square'},{bpm:72,ch:[[52,56,59,62],[57,61,64,67],[52,56,59,62],[59,63,66,69]],bass:'triangle',lead:'triangle'},{bpm:100,ch:[[57,61,64],[62,66,69],[64,68,71],[57,61,64]],bass:'sine',lead:'sine'},{bpm:80,ch:[[60,64,67],[65,69,72]],bass:'sine',lead:'sine'}];
-const TALK=["You're listening to Talk ten-forty. Traffic on the Beltway is backed up again. Shocking.","Today's weather: hot, sticky, and a hundred percent chance of regret.","A gator was spotted at the Palmview Mall food court. He ordered the fish.","Call Sal! If you're injured, or just bored, Sal wants to hear from you.","Sports: the Gators are up by seven. The Sharks are down by seven. Math checks out.","Reminder: the speedway is not a shortcut. We have been asked to say that.","Coming up: why does everyone in Sable Flats own three couches? We investigate."];
+const TALK=["You're listening to Talk ten-forty. Traffic on the Beltway is backed up again. Shocking.","Today's weather: hot, sticky, and a hundred percent chance of regret.","A gator was spotted at the Lantern Court Mall food court. He ordered the fish.","Call Sal! If you're injured, or just bored, Sal wants to hear from you.","Sports: the Gators are up by seven. The Sharks are down by seven. Math checks out.","Reminder: the speedway is not a shortcut. We have been asked to say that.","Coming up: why does everyone in Sable Flats own three couches? We investigate."];
 function radioTick(){const a=GX.au,R=GX.radio;if(!a||muted)return;const on=player.inCar&&R.st>0;a.radio.gain.setTargetAtTime(on?0.55:0,AC.currentTime,0.3);if(!on)return;const S2=RADIO_SONGS[R.st],spb=60/S2.bpm/2;
   if(R.next<AC.currentTime)R.next=AC.currentTime+0.05;while(R.next<AC.currentTime+0.25){const t=R.next,i=R.step,bar=Math.floor(i/8)%S2.ch.length,ch=S2.ch[bar],mf=n=>440*Math.pow(2,(n-69)/12);
     if(R.st===4){if(i%16===0)tone(mf(ch[0]-12),spb*7,'sine',0.02,a.radio,t);}
@@ -4594,7 +4595,7 @@ function rlSitPose(J){const clip=AV.clips.enter;if(!clip||!RL.sit)return false;i
 var FREE={el:null,god:false,never:false,jump:false,speed:false,lastVy:0};
 function freeOpen(){
   const land=x=>x;const spots=[{n:'Downtown (Sunny Mart)',x:-56,z:-66},{n:'Your house',x:HOME.x+Math.sin(HOME.yaw)*10,z:HOME.z+Math.cos(HOME.yaw)*10},{n:'Hospital',fn:()=>placeAt(HOSPITAL.bi,HOSPITAL.bj,25)},{n:'Police station',fn:()=>placeAt(POLICE.bi,POLICE.bj,25)}]
-    .concat(HOODS.map(h=>({n:h.name,x:h.x,z:h.z})),CITIES.map(c=>({n:c.name,x:c.core[0],z:c.core[1]})),[{n:'Motor Speedway',x:SPEEDWAY.x,z:SPEEDWAY.z+SPEEDWAY.R+50},{n:'Gators Stadium',x:STADIUM.x-140,z:STADIUM.z},{n:'The Keys',x:KEYS[2].x,z:KEYS[2].z}]);
+    .concat(MALL.door?[{n:'Lantern Court Mall',x:MALL.door.x,z:MALL.door.z-3}]:[],HOODS.map(h=>({n:h.name,x:h.x,z:h.z})),CITIES.map(c=>({n:c.name,x:c.core[0],z:c.core[1]})),[{n:'Motor Speedway',x:SPEEDWAY.x,z:SPEEDWAY.z+SPEEDWAY.R+50},{n:'Gators Stadium',x:STADIUM.x-140,z:STADIUM.z},{n:'The Keys',x:KEYS[2].x,z:KEYS[2].z}]);
   FREE.spots=spots;
   const cars0=[['Sedan','sedan'],['Hatchback','hatch'],['SUV','suv'],['Pickup','pickup'],['Van','van'],['Coupe','coupe'],['Taxi','taxi'],['Police car','police'],['Motorcycle','moto']];
   const kn=(typeof KN!=='undefined'&&KN.ready)?Object.keys(KN.cars).map(k=>[k.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),'kn:'+k]):[];
@@ -4819,8 +4820,20 @@ function updateAnimLayers(dt){if(!AV.ready)return;const J=AV.josh;
   for(const a of AV.pool){const p=a.ped;if(!p||!a.obj.visible)continue;const d=Math.hypot(p.x-player.x,p.z-player.z);const talking=typeof RL!=='undefined'&&RL.talk&&RL.talk.p===p;
     avLayer(a,{look:(d<7||talking)?{x:player.x,y:(player.y||0)+1.6,z:player.z}:null,pose:talking||p.state==='chat'?'talk':null,t:clock+(p.ph||(p.ph=Math.random()*6))},dt);}}
 
+// ---------- Lantern Court Mall: your 3D mall (from the lantern-court-mall project) now lives in the downtown mall building ----------
+var MALL={el:null,btn:null,door:null};
+function mallSetup(){const h=HALLS.find(q=>q.kind==='mall');if(!h)return;const z=h.inner.z0-2.2;MALL.door={x:h.cx,z};
+  PUB_ACTS.push({x:h.cx,z,y:0.25,label:'Enter Lantern Court Mall (55 shops · food court)',act:mallEnter});
+  PUB_ACTS.push({x:h.cx,z:h.inner.z0+1.5,y:0.25,label:'Go into Lantern Court Mall',act:mallEnter});}
+function mallEnter(){if(MALL.el||player.inCar)return;RL&&(RL.sit=null);
+  fadeTo(()=>{const f=document.createElement('iframe');f.src='mall/';f.title='Lantern Court Mall';f.allow='fullscreen';f.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0;z-index:60;background:#111';document.body.appendChild(f);MALL.el=f;
+    const b=document.createElement('button');b.textContent='← Leave the mall';b.style.cssText='position:fixed;left:12px;bottom:14px;z-index:61;padding:9px 14px;border:0;border-radius:10px;background:#e01e37;color:#fff;font:700 14px Segoe UI,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)';b.addEventListener('click',mallLeave);document.body.appendChild(b);MALL.btn=b;
+    S.inMall=true;player.vx=player.vz=0;try{document.exitPointerLock&&document.exitPointerLock();}catch(e){}try{if(AC&&AC.state==='running')AC.suspend();}catch(e){}try{window.speechSynthesis&&speechSynthesis.cancel();}catch(e){}setTimeout(()=>{try{f.focus();}catch(e){}},300);});}
+function mallLeave(){if(!MALL.el)return;MALL.el.remove();MALL.el=null;if(MALL.btn){MALL.btn.remove();MALL.btn=null;}S.inMall=false;
+  if(MALL.door){player.x=MALL.door.x;player.z=MALL.door.z-1.5;player.y=0.25;player.h=Math.PI;player.vx=player.vz=player.vy=0;}try{if(AC&&AC.state==='suspended')AC.resume();}catch(e){}toast('Thanks for visiting Lantern Court Mall!');}
+
 function start(){
-  S.started=true;mpInit();findsSetup();vendSetup();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · E: horn · B: free play (do whatever you want)'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setTimeout(()=>toast('There are '+FINDS.list.length+' hidden places out in the swamps, woods and countryside · B for a hint'),24000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  S.started=true;mpInit();findsSetup();vendSetup();mallSetup();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · E: horn · B: free play (do whatever you want)'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setTimeout(()=>toast('There are '+FINDS.list.length+' hidden places out in the swamps, woods and countryside · B for a hint'),24000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   {const fb=document.createElement('button');fb.id='freeBtn';fb.textContent='FREE PLAY (B)';fb.style.cssText='position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:30;padding:5px 12px;border:0;border-radius:8px;background:rgba(45,211,111,.85);color:#062;font:700 12px Segoe UI,Arial,sans-serif;cursor:pointer';fb.addEventListener('click',e=>{e.stopPropagation();freeToggle();});document.body.appendChild(fb);}
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
   camYaw=player.h+Math.PI;
