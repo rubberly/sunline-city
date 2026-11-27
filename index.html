@@ -2663,7 +2663,7 @@ addEventListener('keydown',e=>{if(!S.started)return;if(GAME_KEYS.includes(e.code
   switch(e.code){
     case 'KeyF':if(!tryChute())enterExit();break;
     case 'KeyE':if(player.inCar){const g=rlGasAction();if(g)g.act();else horn();}else interact();break;
-      case 'KeyG':rlWave();break;case 'KeyC':rlSit();break;case 'KeyY':rlTaxiMenu();break;
+      case 'KeyB':freeToggle();break;case 'KeyG':rlWave();break;case 'KeyC':rlSit();break;case 'KeyY':rlTaxiMenu();break;
       case 'Digit1':case 'Digit2':case 'Digit3':case 'Digit4':case 'Digit5':case 'Digit6':case 'Digit7':if(RL.taxi)rlTaxiGo(+e.code.slice(5)-1);break;
     case 'KeyR':punch();break;
     case 'KeyH':toggleLights();break;
@@ -3301,7 +3301,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(S.stars>0?dt*2.2:dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateRealLife(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateRealLife(dt);updateFree(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -4135,9 +4135,8 @@ function updatePhone(dt){const P=GX.ph,t=player.inCar||player;if(!S.started)retu
     const d=Math.hypot(t.x-st.x,t.z-st.z);phoneUI('📍 <b>'+P.m.who+'</b><br>'+st.txt+(st.time!=null?'<br>⏱ '+Math.ceil(st.time)+'s':'')+'<br><span style="opacity:.7">'+Math.round(d)+' m away</span>');
     const ok=d<7&&(!st.needCar||player.inCar===st.needCar);if(ok){P.m.i++;if(GX.au&&!muted)tone(1320,0.15,'sine',0.06);if(P.m.i>=P.m.steps.length){addMoney(P.m.pay);big('JOB DONE','+$'+P.m.pay.toLocaleString(),true);P.m=null;GX.beacon.visible=GX.ring.visible=false;P.t=120;phoneUI(null);}}}}
 addEventListener('keydown',e=>{if(e.repeat||!S.started||S.paused)return;
-  if(e.code==='KeyT'&&GX.ph.call){const c=GX.ph.call;GX.ph.call=null;GX.ph.m={who:c.who,steps:c.steps(),i:0,pay:c.pay};phoneUI('📱 <b>'+c.who+':</b> '+c.line);toast(c.who+': job accepted');}
   if(e.code==='KeyQ'){initAudio();gxAudio();const R=GX.radio;R.st=(R.st+1)%R.names.length;R.step=0;if(window.speechSynthesis)speechSynthesis.cancel();toast('📻 '+R.names[R.st]);}});
-function updateGTA(dt){if(GX.lastT!=null&&S.time<GX.lastT)GX.fogDay=Math.random()<0.45?rand(0.5,1):0;GX.lastT=S.time;updateSound(dt);updateTraffic(dt);updateLooks(dt);updateHeli(dt);updatePhone(dt);}
+function updateGTA(dt){if(GX.lastT!=null&&S.time<GX.lastT)GX.fogDay=Math.random()<0.45?rand(0.5,1):0;GX.lastT=S.time;updateSound(dt);updateTraffic(dt);updateLooks(dt);updateHeli(dt);}
 
 // ---------- realistic Mixamo people: Josh is you; the people nearest you become real 3D humans with motion-captured animation ----------
 const AV={ready:false,models:{},clips:{},pool:[],josh:null,cap:12,t:0,shown:false};
@@ -4589,8 +4588,65 @@ function rlSitPose(J){const clip=AV.clips.enter;if(!clip||!RL.sit)return false;i
     const hp=new THREE.Vector3();J.hips.getWorldPosition(hp);const fx=Math.sin(RL.sit.h),fz=Math.cos(RL.sit.h);F.dx=(RL.sit.x-fx*0.08)-hp.x;F.dz=(RL.sit.z-fz*0.08)-hp.z;J.obj.position.set(RL.sit.x+F.dx,player.y||0,RL.sit.z+F.dz);}
   return true;}
 
+// ---------- FREE PLAY menu (B): spawn any vehicle, teleport anywhere, change time and weather, wanted level, invincible, super jump/speed, money ----------
+var FREE={el:null,god:false,never:false,jump:false,speed:false,lastVy:0};
+function freeOpen(){
+  const land=x=>x;const spots=[{n:'Downtown (Sunny Mart)',x:-56,z:-66},{n:'Your house',x:HOME.x+Math.sin(HOME.yaw)*10,z:HOME.z+Math.cos(HOME.yaw)*10},{n:'Hospital',fn:()=>placeAt(HOSPITAL.bi,HOSPITAL.bj,25)},{n:'Police station',fn:()=>placeAt(POLICE.bi,POLICE.bj,25)}]
+    .concat(HOODS.map(h=>({n:h.name,x:h.x,z:h.z})),CITIES.map(c=>({n:c.name,x:c.core[0],z:c.core[1]})),[{n:'Motor Speedway',x:SPEEDWAY.x,z:SPEEDWAY.z+SPEEDWAY.R+50},{n:'Gators Stadium',x:STADIUM.x-140,z:STADIUM.z},{n:'The Keys',x:KEYS[2].x,z:KEYS[2].z}]);
+  FREE.spots=spots;
+  const cars0=[['Sedan','sedan'],['Hatchback','hatch'],['SUV','suv'],['Pickup','pickup'],['Van','van'],['Coupe','coupe'],['Taxi','taxi'],['Police car','police'],['Motorcycle','moto']];
+  const kn=(typeof KN!=='undefined'&&KN.ready)?Object.keys(KN.cars).map(k=>[k.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),'kn:'+k]):[];
+  const airs=[['Helicopter','air:heli'],['Prop plane','air:plane'],['Jet','air:jet']];
+  const b=(a,l,on)=>'<button data-a="'+a+'" style="margin:3px;padding:6px 10px;border:0;border-radius:7px;cursor:pointer;font:600 13px Segoe UI,Arial,sans-serif;background:'+(on?'#2dd36f':'rgba(255,255,255,.12)')+';color:'+(on?'#062':'#fff')+'">'+l+'</button>';
+  const sec=t=>'<div style="margin:10px 0 3px;color:#ffd60a;font:700 12px Segoe UI,Arial,sans-serif;letter-spacing:.08em">'+t+'</div>';
+  let h='<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:20px">FREE PLAY</b>'+b('close','✕ Close (B)')+'</div><div style="opacity:.7;font-size:12px">Do whatever you want. Everything here works instantly.</div>';
+  h+=sec('SPAWN A VEHICLE')+cars0.concat(airs).map(([l,a])=>b('veh:'+a,l)).join('')+(kn.length?'<div>'+kn.map(([l,a])=>b('veh:'+a,l)).join('')+'</div>':'');
+  h+=sec('TELEPORT')+spots.map((s,i)=>b('tp:'+i,s.n)).join('');
+  h+=sec('TIME & WEATHER')+[['Morning',0.3],['Noon',0.5],['Sunset',0.76],['Night',0.95]].map(([l,t])=>b('time:'+t,l)).join('')+['clear','cloudy','rain'].filter(w=>typeof WEATHERS==='undefined'||WEATHERS[w]).map(w=>b('wx:'+w,w[0].toUpperCase()+w.slice(1))).join('');
+  h+=sec('POLICE')+b('wanted:0','Clear wanted level')+b('wanted:1','+1 star')+b('wanted:5','5 stars')+b('never','Never wanted',FREE.never);
+  h+=sec('YOU')+b('god','Invincible',FREE.god)+b('jump','Super jump',FREE.jump)+b('speed','Super speed',FREE.speed)+b('money','+$10,000')+b('heal','Full health')+b('fix','Fix my car');
+  if(!FREE.el){const el=document.createElement('div');el.id='freeMenu';el.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:46;width:min(720px,94vw);max-height:86vh;overflow:auto;background:rgba(14,16,22,.95);color:#fff;border:2px solid #2dd36f;border-radius:14px;padding:14px 16px;font:14px Segoe UI,Arial,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.6)';
+    el.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(t)freeDo(t.dataset.a);});document.body.appendChild(el);FREE.el=el;}
+  FREE.el.innerHTML=h;FREE.el.style.display='block';try{document.exitPointerLock&&document.exitPointerLock();}catch(e){}}
+function freeClose(){if(FREE.el)FREE.el.style.display='none';}
+function freeToggle(){if(FREE.el&&FREE.el.style.display==='block')freeClose();else freeOpen();}
+function freeOpenSpot(x,z){for(let r=0;r<80;r+=4)for(let a=0;a<6.28;a+=0.8){const px=x+Math.cos(a)*r,pz=z+Math.sin(a)*r;if(roofAt(px,pz)===0&&!inDeepWater(px,pz))return[px,pz];if(r===0)break;}return[x,z];}
+function freeDo(a){const t=player.inCar||player;
+  if(a==='close'){freeClose();return;}
+  if(a.startsWith('veh:')){const k=a.slice(4);if(player.inAir){toast('Land first','bad');return;}const h=player.inCar?player.inCar.h:player.h,fx=Math.sin(h),fz=Math.cos(h);let[x,z]=[t.x+fx*6,t.z+fz*6];
+    if(k.startsWith('air:')){const ty=k.slice(4);[x,z]=freeOpenSpot(t.x+fx*14,t.z+fz*14);const y=Math.max(groundAt(x,z),roofAt(x,z));spawnAir(ty,x,z,h,pick([0xc1121f,0x1d3557,0xf4f4f4,0xffd60a,0x2a9d8f]),y);toast(AIR_TYPES[ty].name+' ready · walk up and press F','cash');}
+    else if(k==='moto'){spawnMoto(x,z,h,'parked');toast('Motorcycle spawned · press F to ride','cash');}
+    else if(k.startsWith('kn:')){const c=spawnCar(x,z,h,'parked',k==='kn:police');knCar(c,k.slice(3));toast('Spawned · press F to get in','cash');}
+    else{const c=spawnCar(x,z,h,'parked',k==='police',k==='police'?null:k);toast('Spawned · press F to get in','cash');}
+    freeClose();return;}
+  if(a.startsWith('tp:')){const s=FREE.spots[+a.slice(3)];if(!s)return;freeClose();fadeTo(()=>{if(player.inAir){player.inAir.pilot=false;player.inAir=null;}const c=player.inCar;
+      if(s.fn){if(c)exitCarNow(true);s.fn();}else{const[x,z]=freeOpenSpot(s.x,s.z);const y=Math.max(groundAt(x,z),0)+0.25;if(c){c.x=x;c.z=z;c.y=y-0.25;c.vx=c.vz=0;c.s=0;c.mesh.position.set(x,c.y,z);}else{player.x=x;player.z=z;player.y=y;}player.vx=player.vz=player.vy=0;}
+      if(HR.cur){HR.cur=null;HR.room.visible=false;}if(typeof LOBBY!=='undefined'&&LOBBY.cur){LOBBY.cur=null;LOBBY.room.visible=false;}S.floor=null;toast('Welcome to '+s.n);});return;}
+  if(a.startsWith('time:')){if(MP.clockOff!=null){toast('Online: time of day is shared by everyone','bad');return;}S.time=+a.slice(5);toast('Time changed');return;}
+  if(a.startsWith('wx:')){if(MP.clockOff!=null){toast('Online: weather is shared by everyone','bad');return;}GFX.weather=a.slice(3);GFX.weatherT=400;const i=WSEQ.indexOf(GFX.weather);if(i>=0)wIdx=i;toast('Weather: '+GFX.weather);return;}
+  if(a.startsWith('wanted:')){const n=+a.slice(7);if(n===0){S.stars=0;S.heatT=0;for(const k of cars)if(k.mode==='police')k.chase=false;toast('Wanted level cleared');}else{FREE.never=false;S.stars=n===5?5:Math.min(5,S.stars+1);S.heatT=0;toast('Wanted level '+S.stars,'bad');}freeOpen();return;}
+  if(a==='never'){FREE.never=!FREE.never;if(FREE.never){S.stars=0;for(const k of cars)if(k.mode==='police')k.chase=false;}toast('Never wanted: '+(FREE.never?'ON':'OFF'));freeOpen();return;}
+  if(a==='god'){FREE.god=!FREE.god;toast('Invincible: '+(FREE.god?'ON':'OFF'));freeOpen();return;}
+  if(a==='jump'){FREE.jump=!FREE.jump;toast('Super jump: '+(FREE.jump?'ON':'OFF'));freeOpen();return;}
+  if(a==='speed'){FREE.speed=!FREE.speed;toast('Super speed: '+(FREE.speed?'ON':'OFF'));freeOpen();return;}
+  if(a==='money'){addMoney(10000);toast('+$10,000','cash');return;}
+  if(a==='heal'){S.hp=100;toast('Full health','cash');return;}
+  if(a==='fix'){const c=player.inCar||MP.lastCar;if(c){c.hp=100;toast('Car repaired','cash');}else toast('Get in a car first','bad');return;}}
+// invincible + never wanted
+{const _dp=damagePlayer;damagePlayer=function(n,why){if(FREE.god)return;return _dp(n,why);};}
+{const _w=wasted;wasted=function(why){if(FREE.god){toast('Invincible · you walk it off');return;}return _w(why);};}
+{const _ac=addCrime;addCrime=function(n,why){if(FREE.never)return;return _ac(n,why);};}
+function updateFree(dt){
+  if(FREE.never&&S.stars>0){S.stars=0;for(const k of cars)if(k.mode==='police')k.chase=false;}
+  if(FREE.god){S.hp=100;if(player.inCar&&player.inCar.hp<100)player.inCar.hp=100;}
+  if(!player.inCar&&!player.inAir&&S.deadT<=0){
+    if(FREE.jump&&player.vy>2&&FREE.lastVy<=0.5)player.vy*=2.6;
+    if(FREE.speed&&!RL.sit){const v=Math.hypot(player.vx,player.vz);if(v>0.5){player.x+=player.vx*dt*1.6;player.z+=player.vz*dt*1.6;}}}
+  FREE.lastVy=player.vy;}
+
 function start(){
-  S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · T: answer your phone · E: horn'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  S.started=true;mpInit();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · E: horn · B: free play (do whatever you want)'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  {const fb=document.createElement('button');fb.id='freeBtn';fb.textContent='FREE PLAY (B)';fb.style.cssText='position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:30;padding:5px 12px;border:0;border-radius:8px;background:rgba(45,211,111,.85);color:#062;font:700 12px Segoe UI,Arial,sans-serif;cursor:pointer';fb.addEventListener('click',e=>{e.stopPropagation();freeToggle();});document.body.appendChild(fb);}
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
   camYaw=player.h+Math.PI;
   toast('Sunny Mart is right next to you · purple $ on the map = shops');
