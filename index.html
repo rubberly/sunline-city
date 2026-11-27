@@ -1834,6 +1834,7 @@ function shopAction(){
   {const h=hrAction();if(h&&h.dist<bd+0.2)best=h;}
   {const g=rlAction();if(g&&g.dist<bd+0.5)best=g;}
   {const fa=findsAction();if(fa&&fa.dist<bd+1.5)best=fa;}
+  {const va=vendAction();if(va&&(!best||va.dist<bd))best=va;}
   if(!best){const t=rlTalkAction();if(t)best=t;}
   return best;
 }
@@ -3302,7 +3303,7 @@ function frame(now){
     const inp=axes();
     if(S.entry)updateEntry(S.stars>0?dt*2.2:dt);else if(S.exit)updateExit(dt);else if(player.inCar)updatePlayerCar(dt,inp);else if(!player.inAir)updatePlayerFoot(dt,inp);
   }
-  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateRealLife(dt);updateFree(dt);updateFinds(dt);updateAvatars(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
+  updateCars(dt);updateAir(dt);updatePeds(dt);updateLife(dt);updateJobs(dt);updateAirTraffic(dt);updatePedTag(dt);updateArenas(dt);updateReactions(dt);updateCull(dt);updateLobby(dt);updateHouseRob(dt);updateNews(dt);updateRealLife(dt);updateFree(dt);updateFinds(dt);updateAvatars(dt);updateVend(dt);updateAnimLayers(dt);updateMotos(dt);updateLively(dt);updateGTA(dt);updateCities(dt);updateParts(dt);if(S.started)worldFx(dt);
   if(S.started){
     updateHeat(dt);updateMission(dt);updateCash(dt);updateShops(dt);updateHalls(dt);
     if(S.deadT>0){S.deadT-=dt;if(S.deadT<=0)respawn();}
@@ -4721,8 +4722,105 @@ function updateFinds(dt){if(!FINDS.list.length)return;const t=player.inCar||play
     if(!FINDS.found[f.id]&&d<10){FINDS.found[f.id]=true;findsSave();addMoney(250);big('DISCOVERED: '+f.name.toUpperCase(),f.t.lore+'  ·  '+findsCount()+'/'+FINDS.list.length+' found  ·  +$250',true);thud(0.2);}}
   if(near&&nd<140){FINDS.beacon.visible=true;FINDS.beacon.position.set(near.x,6+Math.sin(clock*2)*0.6,near.z);FINDS.beacon.rotation.y+=dt*2;if(FINDS.near!==near){FINDS.near=near;toast('You spot something out here... look for the yellow marker');}}else FINDS.beacon.visible=false;}
 
+// ---------- street vendors + live streamers, and extra animation layers (look at you, breathe, wave, hold a phone, talk with hands) ----------
+var VEND={list:[],pool:[],t:0,streamT:0};
+// --- animation layers on top of the Mixamo clips: rotate bones around WORLD axes so it works whatever the rig's local axes are
+const _q1=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_v1=new THREE.Vector3(),_ax=new THREE.Vector3();
+function avBones(a){if(a.bones)return a.bones;const B={};a.obj.traverse(o=>{if(!o.isBone)return;const n=o.name.replace(/^mixamorig\d*:?/,'');if(!B[n])B[n]=o;});a.bones=B;return B;}
+function boneRotW(b,axis,ang){if(!b||!b.parent||!ang)return;b.parent.getWorldQuaternion(_q1);_q2.setFromAxisAngle(axis,ang);const w=_q1.clone().multiply(b.quaternion);w.premultiply(_q2);b.quaternion.copy(_q1.invert().multiply(w));b.updateMatrixWorld(true);}
+// opts: {look:{x,y,z}, pose:'phone'|'wave'|'talk'|'beckon', t}
+const LAYER_BONES=["Spine1","Spine","Neck","Head","RightArm","RightForeArm","RightHand","LeftForeArm"];
+function avLayer(a,o,dt){const B=avBones(a),r=a.obj.rotation.y;
+  for(const n of LAYER_BONES){const b=B[n];if(!b)continue;const u=b.userData;if(u.after&&b.quaternion.equals(u.after))b.quaternion.copy(u.before);u.before=(u.before||new THREE.Quaternion()).copy(b.quaternion);}
+  try{avLayer2(a,o,dt,B,r);}finally{for(const n of LAYER_BONES){const b=B[n];if(b)b.userData.after=(b.userData.after||new THREE.Quaternion()).copy(b.quaternion);}}}
+function avLayer2(a,o,dt,B,r){a.obj.updateMatrixWorld(true);const up=_ax.set(0,1,0).clone(),fwd=new THREE.Vector3(Math.sin(r),0,Math.cos(r)),side=new THREE.Vector3(Math.cos(r),0,-Math.sin(r));const t=(o&&o.t)||clock;
+  // breathing
+  boneRotW(B.Spine1||B.Spine,side,Math.sin(t*1.7+(a.ph||0))*0.025);
+  // head + neck turn toward something
+  let want=0,nod=0;if(o&&o.look&&B.Head){B.Head.getWorldPosition(_v1);const dx=o.look.x-_v1.x,dz=o.look.z-_v1.z,d=Math.hypot(dx,dz);if(d<14&&d>0.3){let df=Math.atan2(dx,dz)-r;df=Math.atan2(Math.sin(df),Math.cos(df));if(Math.abs(df)<2.1)want=clamp(df,-1.1,1.1);nod=clamp(Math.atan2(_v1.y-(o.look.y||_v1.y),d)*0.6,-0.35,0.35);}}
+  a.look=(a.look||0)+(want-(a.look||0))*Math.min(1,dt*5);a.nod=(a.nod||0)+(nod-(a.nod||0))*Math.min(1,dt*5);
+  boneRotW(B.Neck,up,a.look*0.4);boneRotW(B.Head,up,a.look*0.6);boneRotW(B.Head,side,a.nod);
+  const p=o&&o.pose;if(!p)return;
+  if(p==='phone'){boneRotW(B.RightArm,side,-1.25);boneRotW(B.RightForeArm,side,-1.0);boneRotW(B.RightHand,side,-0.3);boneRotW(B.Head,side,0.12);}
+  else if(p==='wave'){boneRotW(B.RightArm,fwd,-2.5);boneRotW(B.RightForeArm,fwd,-0.25+Math.sin(t*9)*0.45);}
+  else if(p==='beckon'){boneRotW(B.RightArm,side,-0.9);boneRotW(B.RightForeArm,side,-0.8+Math.sin(t*6)*0.35);}
+  else if(p==='talk'){boneRotW(B.RightForeArm,side,-0.5+Math.sin(t*3.1)*0.25);boneRotW(B.LeftForeArm,side,-0.4+Math.sin(t*2.6+1)*0.22);boneRotW(B.RightArm,fwd,-0.12-Math.sin(t*1.9)*0.08);}}
+// --- vendors
+const VEND_TYPES=[
+  {k:'hotdog',name:'Hot Dog Cart',sign:'HOT DOGS',col:'#c1121f',call:['Hot dogs! Get your hot dogs!','Best dogs in Sunline!'],buy:'Buy a hot dog ($4 · +20 health)',price:4,hp:20,msg:'Mustard, onions, perfect.'},
+  {k:'fruit',name:'Fruit Stand',sign:'FRESH FRUIT',col:'#2a9d8f',call:['Fresh mango, fresh coconut!','Cold fruit cups, one dollar off!'],buy:'Buy a fruit cup ($3 · +12 health)',price:3,hp:12,msg:'Mango with chili and lime.'},
+  {k:'icecream',name:'Ice Cream Cart',sign:'ICE CREAM',col:'#ff8fab',call:['Ice cream! Beat the heat!','Popsicles, sundaes, cones!'],buy:'Buy an ice cream ($5 · +15 health)',price:5,hp:15,msg:'Strawberry swirl. Brain freeze.'},
+  {k:'tacos',name:'Taco Stand',sign:'TACOS',col:'#f77f00',call:['Tacos, three for six!','Al pastor, fresh off the grill!'],buy:'Buy tacos ($6 · +30 health)',price:6,hp:30,msg:'Three al pastor tacos. Incredible.'},
+  {k:'flowers',name:'Flower Seller',sign:'FLOWERS',col:'#e63973',call:['Flowers for someone special?','Roses, sunflowers, orchids!'],buy:'Buy a bouquet ($10)',price:10,msg:'A bouquet of sunflowers. Someone will love these.'},
+  {k:'shirts',name:'Souvenir Table',sign:'I ♥ SUNLINE',col:'#1d3557',call:['Souvenirs! T-shirts, hats, keychains!','Show your Sunline pride!'],buy:'Buy an I ♥ Sunline T-shirt ($20)',price:20,shirt:true,msg:'You put on your new I ♥ Sunline T-shirt.'},
+  {k:'news',name:'Newspaper Seller',sign:'SUNLINE TIMES',col:'#333333',call:['Extra, extra! Read all about it!','Get the Sunline Times!'],buy:'Buy the Sunline Times ($1)',price:1,news:true},
+  {k:'watch',name:'Shady Watch Guy',sign:'',col:'#111111',call:['Psst. Want a real Rolex? Totally real.','Watches, sunglasses, cheap cheap!'],buy:'Buy a "genuine" Rolex ($50)',price:50,watch:true},
+  {k:'art',name:'Street Artist',sign:'PORTRAITS $15',col:'#6a4c93',call:['Portraits! Sit still for five minutes!','I can draw you in any style!'],buy:'Get your portrait drawn ($15)',price:15,msg:'The artist hands you a charcoal portrait. It actually looks like you.'}];
+function vendBuild(v){const g=new THREE.Group();g.position.set(v.x,0.25,v.z);g.rotation.y=v.yaw;scene.add(g);const L=c=>new THREE.MeshLambertMaterial({color:c});const T=v.t;
+  const box=(w,h,d,x,y,z,c)=>{const b=new THREE.Mesh(BOX1,typeof c==='number'?L(c):c);b.scale.set(w,h,d);b.position.set(x,y,z);b.castShadow=true;g.add(b);return b;};
+  if(T.k==='watch'){box(0.8,0.5,0.5,-0.9,0.25,0.3,0x222222);box(0.7,0.04,0.45,-0.9,0.52,0.3,0xd4af37);}
+  else if(T.k==='art'){box(0.05,1.2,0.9,-1,0.9,0.4,0x8a6a4a);box(0.04,0.7,0.55,-0.97,1.2,0.4,0xf4f1ea);box(0.45,0.45,0.45,-1,0.22,1.2,0x6b4a2a);}
+  else if(T.k==='news'){box(0.7,1.1,0.5,-0.9,0.55,0.2,0x1f3550);box(0.6,0.08,0.45,-0.9,1.12,0.2,0xf4f1ea);}
+  else{const tr=T.k==='tacos'||T.k==='fruit'||T.k==='shirts'||T.k==='flowers';box(tr?2.2:1.6,0.95,0.9,0,0.48,0.9,tr?0x8a6a4a:0xe8e8e8);box(tr?2.3:1.7,0.06,0.95,0,0.98,0.9,0xd8d0bc);
+    if(!tr)for(const x of [-0.6,0.6]){const w=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.08,12),L(0x222222));w.rotation.x=1.57;w.position.set(x,0.22,1.37);g.add(w);}
+    const um=new THREE.Mesh(new THREE.ConeGeometry(1.5,0.5,10),L(parseInt(T.col.slice(1),16)));um.position.set(0,2.4,0.9);g.add(um);box(0.05,1.5,0.05,0,1.6,0.9,0xcccccc);
+    if(T.k==='fruit')for(let i=0;i<10;i++){const b=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,5),L([0xffb703,0xfb8500,0xe63946,0x8ac926][i%4]));b.position.set(-0.9+i*0.2,1.08,0.8);g.add(b);}
+    if(T.k==='flowers')for(let i=0;i<8;i++){const b=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,5),L([0xe63973,0xffd60a,0xffffff,0xff8fab][i%4]));b.position.set(-0.8+i*0.22,1.15,0.85);g.add(b);}}
+  if(T.sign){const tx=canvasTex(256,64,(c,w,h)=>{c.fillStyle=T.col;c.fillRect(0,0,w,h);c.fillStyle='#fff';c.font='bold 30px "Segoe UI",Arial';c.textAlign='center';c.textBaseline='middle';c.fillText(T.sign,w/2,h/2+2);});
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.4),new THREE.MeshBasicMaterial({map:tx,side:THREE.DoubleSide}));s.position.set(0,1.75,1.4);g.add(s);}
+  return g;}
+// --- streamers
+const STREAM_NAMES=['xXGatorGamerXx','SunlineSam','ChloeLive','BigTonyVlogs','MiamiMia','KeysKyle','DriftKingDre','JennaIRL'];
+function streamBuild(v){const g=new THREE.Group();g.position.set(v.x,0.25,v.z);g.rotation.y=v.yaw;scene.add(g);const L=c=>new THREE.MeshLambertMaterial({color:c});
+  for(const a of [0,2.1,4.2]){const l=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,1.7,5),L(0x222222));l.position.set(-1.1+Math.sin(a)*0.25,0.8,0.9+Math.cos(a)*0.25);l.rotation.z=Math.sin(a)*0.15;g.add(l);}
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.28,0.04,8,24),new THREE.MeshBasicMaterial({color:0xfff6e6}));ring.position.set(-1.1,1.7,0.9);ring.rotation.y=-0.5;g.add(ring);
+  const tx=canvasTex(256,64,()=>{});const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tx,depthTest:false,transparent:true}));sp.scale.set(2.4,0.6,1);sp.position.set(0,2.55,0);g.add(sp);v.tag=tx;v.viewers=randi(80,2400);v.drawT=0;
+  return g;}
+function streamTag(v){const c=v.tag.image.getContext('2d');c.clearRect(0,0,256,64);c.fillStyle='rgba(0,0,0,.6)';c.fillRect(0,8,256,48);c.fillStyle='#e01e37';c.fillRect(6,14,58,36);c.fillStyle='#fff';c.font='bold 22px "Segoe UI",Arial';c.textBaseline='middle';c.fillText('LIVE',12,33);
+  c.font='bold 18px "Segoe UI",Arial';c.fillText(v.name.slice(0,14),72,24);c.font='16px "Segoe UI",Arial';c.fillStyle='#ffd6e0';c.fillText('👁 '+(v.viewers>=1000?(v.viewers/1000).toFixed(1)+'K':v.viewers),72,44);v.tag.needsUpdate=true;}
+function vendSetup(){const R=hrRand(4242),used=[];const far=(x,z,d)=>!used.some(u=>Math.hypot(u[0]-x,u[1]-z)<d);
+  const spots=BENCHES.slice().sort(()=>R()-0.5);let ti=0;
+  for(const b of spots){if(VEND.list.filter(v=>v.vendor).length>=18)break;const fx=Math.sin(b.yaw),fz=Math.cos(b.yaw),sx=Math.cos(b.yaw),sz=-Math.sin(b.yaw);const x=b.x+sx*3.2,z=b.z+sz*3.2;
+    if(!far(x,z,70)||roofAt(x,z)!==0||nearHwy(x,z,4))continue;used.push([x,z]);const t=VEND_TYPES[ti++%VEND_TYPES.length];VEND.list.push({vendor:true,t,x,y:0.25,z,yaw:b.yaw+Math.PI,said:0,name:t.name});}
+  // an ice cream cart and a couple of streamers on the beach, more streamers downtown and at the stadium
+  const extra=[[HALF+30,-40,'icecream'],[HALF+30,90,'tacos'],[HALF+28,-200,'shirts']];for(const [x,z,k] of extra)if(far(x,z,40)){used.push([x,z]);VEND.list.push({vendor:true,t:VEND_TYPES.find(q=>q.k===k),x,y:0.25,z,yaw:-Math.PI/2,said:0,name:k});}
+  const ss=[[HALF+40,20],[HALF+40,-120],[-40,-60],[60,40],[STADIUM.x-120,STADIUM.z-30],[-120,120]].concat(spots.slice(40,44).map(b=>[b.x+Math.cos(b.yaw)*-3,b.z+Math.sin(b.yaw)*3]));let si=0;
+  for(const [x,z] of ss){if(si>=8)break;if(!far(x,z,30)||roofAt(x,z)!==0)continue;used.push([x,z]);VEND.list.push({streamer:true,x,y:0.25,z,yaw:R()*6.28,name:STREAM_NAMES[si++],said:0,ph:R()*6});}
+  for(const v of VEND.list){v.g=v.vendor?vendBuild(v):streamBuild(v);if(v.streamer)streamTag(v);v.h=makeHuman(v.streamer?randomLook():staffLook?staffLook('vendor'):randomLook());v.h.g.position.set(v.x,0.25,v.z);scene.add(v.h.g);v.h.g.rotation.y=v.yaw;}}
+function vendAction(){if(player.inCar||player.inAir||S.deadT>0)return null;let best=null,bd=2.6;
+  for(const v of VEND.list){const d=Math.hypot(v.x-player.x,v.z-player.z);if(d>=bd)continue;bd=d;
+    if(v.vendor)best={key:'E',dist:d,label:v.t.buy,act:()=>vendBuy(v)};else best={key:'E',dist:d,label:'Get on '+v.name+"'s stream",act:()=>streamJoin(v)};}return best;}
+function vendBuy(v){const T=v.t;if(S.money<T.price){toast('Not enough cash','bad');say(v,'No money, no '+(T.k==='hotdog'?'hot dog':'deal')+', pal.');return;}addMoney(-T.price);if(T.hp)S.hp=Math.min(100,S.hp+T.hp);
+  if(T.news){const it=(typeof NEWS!=='undefined'&&NEWS.items[0])||null;toast('Sunline Times: '+(it?it.h:pick(['Gator found in mall fountain, again','Beltway traffic backed up for miles','Ferris wheel on the pier reopens'])));}
+  else if(T.watch){if(Math.random()<0.5)toast('Your "Rolex" says ROLAX on the back. Of course.','bad');else{toast('Wait... this one is actually real! Worth $400','cash');addMoney(400);}}
+  else if(T.shirt){try{const o=player.human.look||{};o.shirt=0xffffff;}catch(e){}toast(T.msg,'cash');}
+  else toast(T.msg||('You bought: '+T.name),'cash');say(v,pick(['Enjoy!','Thank you, come again!','Have a good one!','Pleasure doing business.']));thud(0.08);}
+function streamJoin(v){if(v.joinT>0){say(v,'Chat loves you already!');return;}v.joinT=30;const gain=randi(300,2500);v.viewers+=gain;streamTag(v);addMoney(20);
+  say(v,pick(['CHAT! Look who just walked into my stream!','Say hi to the stream!','Yo, chat is going crazy right now!']));toast(v.name+' · +'+gain+' viewers · chat tipped you $20','cash');
+  if(typeof newsAdd==='function'&&Math.random()<0.3)newsAdd('CITY','Local streamer '+v.name+' goes viral','A surprise guest drove the stream past '+(v.viewers/1000).toFixed(1)+'K viewers');}
+// streamers react to crimes near them
+{const _ac=addCrime;addCrime=function(n,why){const r=_ac(n,why);try{for(const v of VEND.list)if(v.streamer&&Math.hypot(v.x-player.x,v.z-player.z)<45){v.viewers+=randi(500,4000);v.hype=6;streamTag(v);say(v,pick(['CHAT! DID YOU SEE THAT?!','Yo yo yo, this is going in the highlights!','Clip that! CLIP THAT!']));}}catch(e){}return r;};}
+function vendPoolGet(){let a=VEND.pool.find(q=>!q.v);if(!a&&VEND.pool.length<5&&AV.ready){const a2=avMake(avPick(['remy','leonard','sophie','kate']),1.66+Math.random()*0.16);if(a2){VEND.pool.push(a2);a=a2;}}return a;}
+function updateVend(dt){if(!VEND.list.length)return;const t=player.inCar||player;
+  for(const v of VEND.list){const d=Math.hypot(v.x-t.x,v.z-t.z),near=d<220;v.g.visible=near;v.said-=dt;if(v.joinT>0)v.joinT-=dt;if(v.hype>0)v.hype-=dt;
+    // realistic model for the closest ones
+    if(AV.ready&&d<45&&!v.av){const a=vendPoolGet();if(a){a.v=v;v.av=a;a.obj.visible=true;a.ph=v.ph||Math.random()*6;}}
+    if(v.av&&(d>55||!near)){v.av.v=null;v.av.obj.visible=false;v.av=null;}
+    v.h.g.visible=near&&!v.av;if(!near)continue;
+    const face=v.yaw+(v.streamer?Math.sin(clock*0.3+(v.ph||0))*0.8:0),pose=v.streamer?'phone':(d<8&&v.said>2?'beckon':(v.said>4?'talk':null));
+    if(v.av){const a=v.av;a.obj.position.set(v.x,0.25,v.z);a.obj.rotation.y=face;avPlay(a,'idle',0.3);a.mixer.update(dt);avLayer(a,{look:d<12?{x:player.x,y:(player.y||0)+1.6,z:player.z}:null,pose,t:clock+(a.ph||0)},dt);}
+    else{const h=v.h;h.g.rotation.y=face;animHuman(h,0,0,false);if(pose==='phone'){h.shR.rotation.set(-2.0,0,0.2);h.elR.rotation.x=-1.3;}else if(pose==='beckon'){h.shR.rotation.set(-1.0,0,0.1);h.elR.rotation.x=-0.9+Math.sin(clock*6)*0.3;}}
+    if(d<9&&v.said<=0){v.said=9;say(v,v.vendor?pick(v.t.call):(v.hype>0?'CHAT IS GOING CRAZY!':pick(['What is up chat, we are LIVE in Sunline!','Chat, should I talk to this person?','Thanks for the follow!','Smash that like button!'])));}
+    if(v.streamer){v.drawT-=dt;if(v.drawT<=0){v.drawT=2.5;v.viewers=Math.max(20,Math.round(v.viewers*(1+(Math.random()-0.48)*0.04)));streamTag(v);}}}}
+// layers for Josh and the realistic pedestrians (run after their animations)
+function updateAnimLayers(dt){if(!AV.ready)return;const J=AV.josh;
+  if(J&&J.obj.visible&&!(typeof RL!=='undefined'&&RL.sit)&&!S.entry&&!S.exit){const T=typeof RL!=='undefined'&&RL.talk?RL.talk.p:null;avLayer(J,{look:T?{x:T.x,y:(T.y||0)+1.6,z:T.z}:null,pose:typeof RL!=='undefined'&&RL.waveT>0?'wave':null},dt);}
+  if(typeof RL!=='undefined'&&RL.waveT>0)RL.waveT-=dt;
+  for(const a of AV.pool){const p=a.ped;if(!p||!a.obj.visible)continue;const d=Math.hypot(p.x-player.x,p.z-player.z);const talking=typeof RL!=='undefined'&&RL.talk&&RL.talk.p===p;
+    avLayer(a,{look:(d<7||talking)?{x:player.x,y:(player.y||0)+1.6,z:player.z}:null,pose:talking||p.state==='chat'?'talk':null,t:clock+(p.ph||(p.ph=Math.random()*6))},dt);}}
+
 function start(){
-  S.started=true;mpInit();findsSetup();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · E: horn · B: free play (do whatever you want)'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setTimeout(()=>toast('There are '+FINDS.list.length+' hidden places out in the swamps, woods and countryside · B for a hint'),24000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
+  S.started=true;mpInit();findsSetup();vendSetup();lobbySetup();setTimeout(knLoad,4000);setTimeout(avLoad,1500);setTimeout(()=>toast('Q: radio · E: horn · B: free play (do whatever you want)'),6000);setTimeout(()=>toast('E: talk to people · G: wave · C: sit · Y: taxi · hold X: surrender'),14000);setTimeout(()=>toast('There are '+FINDS.list.length+' hidden places out in the swamps, woods and countryside · B for a hint'),24000);setupCull();try{const sv=JSON.parse(localStorage.getItem('sunline-save')||'null');if(sv&&typeof sv.money==='number'){S.money=sv.money;addMoney(0);}}catch(e){}scene.traverse(o=>{if(o.isInstancedMesh&&!o.userData.chunked)o.frustumCulled=false;});
   {const fb=document.createElement('button');fb.id='freeBtn';fb.textContent='FREE PLAY (B)';fb.style.cssText='position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:30;padding:5px 12px;border:0;border-radius:8px;background:rgba(45,211,111,.85);color:#062;font:700 12px Segoe UI,Arial,sans-serif;cursor:pointer';fb.addEventListener('click',e=>{e.stopPropagation();freeToggle();});document.body.appendChild(fb);}
   if(isTouch){$('touch').hidden=false;$('hint').hidden=true;}
   camYaw=player.h+Math.PI;
